@@ -1,0 +1,7 @@
+﻿{
+  "files": ["frontend/index.html"],
+  "insertBefore": "<!-- impeccable-insert-here -->",
+  "commentSyntax": "html",
+  "cspChecked": false,
+  "framework": "vite"
+}

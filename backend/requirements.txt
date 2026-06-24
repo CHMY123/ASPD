@@ -1,0 +1,16 @@
+fastapi==0.123.5
+uvicorn[standard]==0.34.0
+langgraph==1.0.5
+langchain-openai==1.2.2
+chromadb==1.4.0
+aiomysql==0.3.2
+pymysql==1.1.1
+python-dotenv==1.2.1
+pydantic==2.12.5
+pydantic-settings==2.7.1
+httpx==0.28.1
+python-jose[cryptography]==3.3.0
+bcrypt==4.0.1
+boto3==1.42.9
+pytest==7.4.3
+pytest-asyncio==0.21.1
