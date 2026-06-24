@@ -412,7 +412,7 @@ async function refreshStatus() {
   }
 }
 
-// 执行查询
+// 执行查询（使用SSE流式接收状态）
 async function executeQuery() {
   if (!inputQuery.value.trim() || isExecuting.value) return;
 
@@ -421,9 +421,13 @@ async function executeQuery() {
   
   // 重置步骤状态
   Object.keys(stepStatus).forEach(key => stepStatus[key] = 'pending');
+  console.log('=== 开始执行查询 ===');
+  console.log('步骤状态已重置:', stepStatus);
 
   try {
-    const response = await fetch('http://localhost:8000/api/agents/query', {
+    // 创建SSE连接
+    console.log('正在连接到流式接口...');
+    const response = await fetch('http://localhost:8000/api/agents/query/stream', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -438,11 +442,41 @@ async function executeQuery() {
       throw new Error(`HTTP ${response.status}`);
     }
 
-    const data = await response.json();
-    queryResult.value = data;
+    console.log('连接成功，开始接收流式数据...');
 
-    // 更新步骤状态为完成
-    Object.keys(stepStatus).forEach(key => stepStatus[key] = 'completed');
+    // 使用ReadableStream处理SSE
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      
+      if (done) {
+        console.log('流式数据接收完成');
+        break;
+      }
+
+      buffer += decoder.decode(value, { stream: true });
+      console.log('接收到数据片段，当前缓冲区:', buffer.length, '字符');
+      
+      // 处理完整的SSE消息
+      while (buffer.includes('\n\n')) {
+        const messageEnd = buffer.indexOf('\n\n');
+        const message = buffer.substring(0, messageEnd);
+        buffer = buffer.substring(messageEnd + 2);
+
+        if (message.startsWith('data: ')) {
+          try {
+            const data = JSON.parse(message.substring(6));
+            console.log('解析到SSE消息:', data);
+            handleSSEMessage(data);
+          } catch (e) {
+            console.error('解析SSE消息失败:', e);
+          }
+        }
+      }
+    }
 
   } catch (error) {
     console.error('查询失败:', error);
@@ -452,6 +486,35 @@ async function executeQuery() {
     };
   } finally {
     isExecuting.value = false;
+    console.log('=== 查询执行结束 ===');
+  }
+}
+
+// 处理SSE消息
+function handleSSEMessage(data) {
+  switch (data.type) {
+    case 'step_start':
+      // 步骤开始
+      if (stepStatus[data.step_id] === 'pending') {
+        stepStatus[data.step_id] = 'running';
+      }
+      break;
+    case 'step_complete':
+      // 步骤完成
+      stepStatus[data.step_id] = 'completed';
+      break;
+    case 'result':
+      // 最终结果
+      queryResult.value = data.data;
+      break;
+    case 'error':
+      // 错误
+      console.error('SSE错误:', data.error);
+      queryResult.value = {
+        answer: `抱歉，系统处理您的请求时出错：${data.error}`,
+        status: 'failed'
+      };
+      break;
   }
 }
 

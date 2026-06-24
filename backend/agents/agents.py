@@ -1573,13 +1573,13 @@ class CoordinationAgent(BaseAgent):
         
         self.workflow_engine.register_workflow('qa', qa_workflow)
     
-    async def execute(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def execute(self, input_data: Dict[str, Any], step_callback=None) -> Dict[str, Any]:
         """执行协调任务"""
         query = input_data.get('query', '')
         context = input_data.get('context', {})
-        return await self.process_query(query, context)
+        return await self.process_query(query, context, step_callback)
     
-    async def process_query(self, query: str, context: Optional[Dict] = None) -> Dict[str, Any]:
+    async def process_query(self, query: str, context: Optional[Dict] = None, step_callback=None) -> Dict[str, Any]:
         """处理用户查询 - 执行完整的多Agent工作流"""
         context = context or {}
         
@@ -1598,7 +1598,7 @@ class CoordinationAgent(BaseAgent):
             }
             
             logger.info(f"[CoordinationAgent] 开始执行问答工作流...")
-            results = await self.workflow_engine.execute_workflow('qa', input_data)
+            results = await self.workflow_engine.execute_workflow('qa', input_data, step_callback)
             logger.info(f"[CoordinationAgent] 工作流执行完成")
             
             # 详细记录每个Agent的执行结果

@@ -230,7 +230,7 @@ class TaskScheduler:
                 for task_id in level
             ])
     
-    async def schedule_with_data_flow(self, tasks: List[Task]):
+    async def schedule_with_data_flow(self, tasks: List[Task], step_callback=None):
         """调度任务执行（包含数据传递）"""
         # 1. 构建依赖图
         dependency_graph = self._build_dependency_graph(tasks)
@@ -274,12 +274,22 @@ class TaskScheduler:
                         # 依赖任务失败，记录错误但仍继续执行（让下游任务自行处理缺失数据）
                         logger.warning(f"[TaskScheduler] 依赖任务 {dep_id} 失败，{task.id} 将使用不完整的数据继续执行")
             
-            # 并行执行当前层级的任务（错误隔离：一个任务失败不影响同层级其他任务）
-            level_tasks = []
+            # 顺序执行当前层级的任务（为了支持步骤状态回调）
             for task_id in level:
-                level_tasks.append(self._execute_task(task_map[task_id]))
-            
-            await asyncio.gather(*level_tasks, return_exceptions=True)
+                task = task_map[task_id]
+                
+                # 步骤开始回调
+                if step_callback:
+                    logger.info(f"[TaskScheduler] 步骤 {task_id} 开始执行")
+                    step_callback(task_id, 'running')
+                
+                # 执行任务
+                await self._execute_task(task)
+                
+                # 步骤完成回调
+                if step_callback:
+                    logger.info(f"[TaskScheduler] 步骤 {task_id} 执行完成")
+                    step_callback(task_id, 'completed', task.output or {})
             
             # 记录当前层级执行结果
             for task_id in level:
@@ -388,7 +398,7 @@ class WorkflowEngine:
         """注册工作流"""
         self.workflows[workflow_id] = workflow_config
     
-    async def execute_workflow(self, workflow_id: str, input_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def execute_workflow(self, workflow_id: str, input_data: Dict[str, Any], step_callback=None) -> Dict[str, Any]:
         """执行工作流"""
         if workflow_id not in self.workflows:
             raise ValueError(f"Workflow {workflow_id} not found")
@@ -400,10 +410,10 @@ class WorkflowEngine:
         tasks = self._generate_tasks(workflow, input_data)
         logger.debug(f"[WorkflowEngine] 生成{len(tasks)}个任务: {[t.id for t in tasks]}")
         
-        # 2. 调度执行（包含数据传递）
+        # 2. 调度执行（包含数据传递），支持步骤回调
         import time as _time
         _start = _time.time()
-        await self.scheduler.schedule_with_data_flow(tasks)
+        await self.scheduler.schedule_with_data_flow(tasks, step_callback)
         _elapsed = _time.time() - _start
         logger.info(f"[WorkflowEngine] 工作流执行完成: 耗时={_elapsed:.2f}s")
         

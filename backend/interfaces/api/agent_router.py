@@ -8,6 +8,8 @@ from fastapi import APIRouter, HTTPException, Depends, status
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 import json
+from fastapi.responses import StreamingResponse
+import asyncio
 
 from interfaces.schemas.chat_schema import ErrorResponse
 from agents import CoordinationAgent
@@ -65,7 +67,7 @@ async def query_with_multi_agent(
     current_user: dict = Depends(require_authentication)
 ):
     """
-    使用多Agent系统处理查询
+    使用多Agent系统处理查询（同步版本）
     
     执行完整的多Agent工作流：理解→检索→推理→生成→验证→推荐
     
@@ -105,6 +107,125 @@ async def query_with_multi_agent(
                 "code": "AGENT_ERROR"
             }
         )
+
+
+from pydantic import BaseModel
+
+# 请求模型
+class QueryRequest(BaseModel):
+    query: str
+    context: Optional[Dict[str, Any]] = None
+
+@router.post("/query/stream", responses={
+    401: {"description": "未授权"},
+    500: {"model": ErrorResponse, "description": "服务器错误"}
+})
+async def query_with_multi_agent_stream(
+    request: QueryRequest,
+    agent: CoordinationAgent = Depends(get_coordination_agent),
+    current_user: dict = Depends(require_authentication)
+):
+    """
+    使用多Agent系统处理查询（流式版本，实时推送工作流状态）
+    
+    执行完整的多Agent工作流，实时推送每个步骤的执行状态。
+    
+    Args:
+        query: 用户查询文本
+        context: 可选的上下文信息，如用户级别、课程偏好等
+    
+    Returns:
+        Server-Sent Events流，包含工作流步骤状态和最终结果
+    """
+    query = request.query
+    context = request.context
+    
+    async def event_generator():
+        # 创建一个队列用于收集步骤状态
+        step_queue = asyncio.Queue()
+        final_result = None
+        error_occurred = None
+        
+        # 定义步骤回调函数，将状态放入队列
+        def step_callback(step_id: str, status: str, details: dict = None):
+            step_queue.put_nowait({
+                'type': 'step_start' if status == 'running' else 'step_complete',
+                'step_id': step_id,
+                'status': status,
+                'details': details or {},
+                'timestamp': datetime.now().isoformat()
+            })
+        
+        # 后台任务：执行工作流
+        async def run_workflow():
+            nonlocal final_result, error_occurred
+            try:
+                # 执行工作流，传入回调函数
+                final_result = await agent.execute({
+                    "query": query,
+                    "context": context or {}
+                }, step_callback=step_callback)
+                # 标记工作流完成
+                step_queue.put_nowait({'type': 'workflow_complete'})
+            except Exception as e:
+                error_occurred = e
+                step_queue.put_nowait({
+                    'type': 'error',
+                    'error': str(e),
+                    'timestamp': datetime.now().isoformat()
+                })
+        
+        # 启动工作流执行任务
+        asyncio.create_task(run_workflow())
+        
+        # 从队列中获取步骤状态并推送
+        while True:
+            event = await step_queue.get()
+            
+            if event['type'] == 'workflow_complete':
+                # 工作流完成，推送最终结果
+                if final_result:
+                    result_data = {
+                        'type': 'result',
+                        'data': {
+                            'success': final_result.get("status") == "success",
+                            'query': final_result.get("query", query),
+                            'answer': final_result.get("answer", ""),
+                            'citations': final_result.get("citations", []),
+                            'confidence': final_result.get("confidence", 0.0),
+                            'validation_score': final_result.get("validation_score", 0.0),
+                            'validation_feedback': final_result.get("validation_feedback", ""),
+                            'related_knowledge': final_result.get("related_knowledge", []),
+                            'learning_path': final_result.get("learning_path", []),
+                            'workflow_details': final_result.get("workflow_details", {}),
+                            'execution_time': final_result.get("execution_time", 0.0),
+                            'timestamp': final_result.get("timestamp", datetime.now().isoformat())
+                        },
+                        'timestamp': datetime.now().isoformat()
+                    }
+                    yield f"data: {json.dumps(result_data)}\n\n"
+                break
+            elif event['type'] == 'error':
+                # 发生错误
+                yield f"data: {json.dumps(event)}\n\n"
+                break
+            else:
+                # 步骤状态更新
+                yield f"data: {json.dumps(event)}\n\n"
+    
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+            "Access-Control-Allow-Origin": "http://localhost:5173",
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        }
+    )
 
 
 @router.post("/workflow/execute/{workflow_id}", responses={
