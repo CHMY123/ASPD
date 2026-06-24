@@ -4,13 +4,35 @@
 管理TiDB Cloud数据库异步连接池。
 """
 
-import asyncio
 from typing import Optional
 import aiomysql
 import ssl
+import sys
 from config import DATABASE_URL
 
 _pool: Optional[aiomysql.Pool] = None
+
+
+def _create_ssl_context() -> ssl.SSLContext:
+    """
+    创建SSL上下文（TiDB Cloud要求SSL连接）
+    
+    Windows平台需要特殊处理以避免IOCP兼容性问题。
+    """
+    ssl_context = ssl.create_default_context()
+    ssl_context.check_hostname = False
+    ssl_context.verify_mode = ssl.CERT_NONE
+    
+    # Windows平台特殊配置
+    if sys.platform == 'win32':
+        # 设置SSL选项以避免Windows IOCP问题
+        ssl_context.options |= ssl.OP_NO_SSLv2
+        ssl_context.options |= ssl.OP_NO_SSLv3
+        ssl_context.options |= ssl.OP_NO_COMPRESSION
+        # 使用更稳定的TLS版本
+        ssl_context.minimum_version = ssl.TLSVersion.TLSv1_2
+    
+    return ssl_context
 
 
 async def get_pool() -> aiomysql.Pool:
@@ -29,10 +51,8 @@ async def get_pool() -> aiomysql.Pool:
         import urllib.parse
         parsed = urllib.parse.urlparse(DATABASE_URL)
         
-        # 创建SSL上下文（TiDB Cloud要求SSL连接）
-        ssl_context = ssl.create_default_context()
-        ssl_context.check_hostname = False
-        ssl_context.verify_mode = ssl.CERT_NONE
+        # 创建SSL上下文
+        ssl_context = _create_ssl_context()
         
         _pool = await aiomysql.create_pool(
             host=parsed.hostname,

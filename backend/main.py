@@ -4,8 +4,13 @@
 启动应用并进行依赖注入配置。
 """
 
+import asyncio
 import logging
 import sys
+
+# Windows平台：设置SelectorEventLoop以避免aiomysql SSL IOCP兼容性问题
+if sys.platform == 'win32':
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 # 配置日志 - 在所有其他导入之前设置
 LOG_FORMAT = "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
@@ -131,7 +136,7 @@ async def lifespan(app: FastAPI):
             import_result = await knowledge_service.import_from_folder(KNOWLEDGE_BASE_PATH)
             print(f"知识库导入完成: 共{import_result.total}个知识点，成功{import_result.imported}个，失败{import_result.failed}个")
         else:
-            print(f"知识库已有 {count + 1} 个知识点，跳过导入")
+            print(f"知识库已有 {count} 个知识点，跳过导入")
     except Exception as e:
         print(f"知识库自动导入失败（可稍后手动调用 /init/knowledge 重试）: {e}")
 
@@ -273,6 +278,10 @@ if __name__ == "__main__":
     import uvicorn
     from uvicorn.config import LOGGING_CONFIG
     
+    # Windows平台：设置SelectorEventLoop（避免aiomysql SSL IOCP问题）
+    if sys.platform == 'win32':
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    
     # 自定义 uvicorn 日志配置
     LOGGING_CONFIG["formatters"]["default"]["fmt"] = "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
     LOGGING_CONFIG["formatters"]["default"]["datefmt"] = "%Y-%m-%d %H:%M:%S"
@@ -294,10 +303,25 @@ if __name__ == "__main__":
             ))
             logger.addHandler(handler)
     
-    uvicorn.run(
-        "main:app",
-        host=APP_HOST,
-        port=APP_PORT,
-        reload=DEBUG,
-        log_level=log_level,
-    )
+    # Windows平台使用手动事件循环启动（避免aiomysql SSL IOCP问题）
+    if sys.platform == 'win32':
+        config = uvicorn.Config(
+            "main:app",
+            host=APP_HOST,
+            port=APP_PORT,
+            log_level=log_level,
+        )
+        server = uvicorn.Server(config)
+        
+        # 使用SelectorEventLoop运行
+        loop = asyncio.WindowsSelectorEventLoopPolicy().new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(server.serve())
+    else:
+        uvicorn.run(
+            "main:app",
+            host=APP_HOST,
+            port=APP_PORT,
+            reload=DEBUG,
+            log_level=log_level,
+        )

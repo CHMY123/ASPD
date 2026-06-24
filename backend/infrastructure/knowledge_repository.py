@@ -262,8 +262,83 @@ class ChromaKnowledgeRepository(KnowledgeRepository):
             )
         )
 
-        # 获取或创建集合
-        self.collection = self.client.get_or_create_collection(name=CHROMA_COLLECTION_NAME)
+        # 创建自定义embedding函数包装类，使用SiliconFlow的BGE-M3模型（1024维）
+        class BGEEmbeddingFunction:
+            """
+            自定义向量化函数类，使用BGE-M3模型
+            
+            BGE模型规范：
+            - 文档：passage: {title}\n{content}
+            - 查询：query: {question}
+            """
+            
+            def __init__(self, llm_client):
+                self.llm_client = llm_client
+            
+            def name(self) -> str:
+                """返回embedding函数名称（Chroma要求）"""
+                return "BGE-M3-SiliconFlow"
+            
+            def embed_query(self, input: str) -> List[List[float]]:
+                """
+                向量化查询文本（Chroma接口要求）
+                
+                Args:
+                    input: 查询文本（Chroma 0.4.16+接口要求）
+                    
+                Returns:
+                    List[List[float]]: 向量列表（1024维）
+                """
+                import asyncio
+                import concurrent.futures
+                
+                async def embed():
+                    # 使用query前缀进行向量化（符合BGE模型非对称检索规范）
+                    query_text = f"query: {input}"
+                    embedding = await self.llm_client.get_embedding(query_text)
+                    return embedding
+                
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    embedding = executor.submit(lambda: asyncio.run(embed())).result()
+                    # 返回二维列表格式
+                    return [embedding]
+            
+            def __call__(self, input: List[str]) -> List[List[float]]:
+                """
+                向量化文档列表
+                
+                Args:
+                    input: 文档列表（Chroma 0.4.16+接口要求）
+                    
+                Returns:
+                    List[List[float]]: 向量列表（1024维）
+                """
+                import asyncio
+                import concurrent.futures
+                
+                async def embed_batch(docs):
+                    results = []
+                    for doc in docs:
+                        # 使用passage前缀进行向量化（符合BGE模型非对称检索规范）
+                        passage_text = f"passage: {doc}"
+                        embedding = await self.llm_client.get_embedding(passage_text)
+                        results.append(embedding)
+                    return results
+                
+                # 使用线程池运行异步代码（避免事件循环嵌套问题）
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    return executor.submit(
+                        lambda: asyncio.run(embed_batch(input))
+                    ).result()
+
+        # 创建embedding函数实例
+        custom_embedding_function = BGEEmbeddingFunction(self.llm_client)
+
+        # 获取或创建集合，指定自定义embedding_function
+        self.collection = self.client.get_or_create_collection(
+            name=CHROMA_COLLECTION_NAME,
+            embedding_function=custom_embedding_function
+        )
 
         logger.info(f"ChromaKnowledgeRepository initialized: {CHROMA_DB_PATH}/{CHROMA_COLLECTION_NAME}")
 
