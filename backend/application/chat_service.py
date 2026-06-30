@@ -35,19 +35,21 @@ class ChatService:
     """
 
     # 系统提示词 - 强调必须基于知识库回答
-    SYSTEM_PROMPT_KNOWLEDGE = """你是课程学习知识库问答系统的智能助手。
+    SYSTEM_PROMPT_KNOWLEDGE = """你是课程学习知识库问答系统的智能助手，来自华南师范大学课程管理系统。
 
-【核心职责】
-1. 回答用户关于课程知识的问题
-2. 帮助用户理解复杂的概念
-3. 提供学习建议和知识推荐
+【核心指令】
+当【检索到的参考文档】显示"知识库中未检索到相关内容"或参考文档内容为空时，你必须：
+1. 首先用明确的语言告知用户："知识库中未检索到相关内容，以下是基于通用知识的回答："
+2. 然后基于你的内置知识进行回答
 
-【回答约束-必须严格遵守】
-1. 你只能使用【检索到的参考文档】中的信息来回答用户问题
-2. 如果参考文档中没有相关信息，你必须直接回答："知识库中未找到与您问题相关的信息，请尝试其他问题或联系教师。"
-3. 严禁使用你自身的训练数据中的知识来回答
-4. 严禁编造或引用不存在的知识库信息
-5. 回答完成后，列出你实际引用的参考来源标题
+当【检索到的参考文档】包含有效内容时，你必须：
+1. 优先使用参考文档中的信息回答问题
+2. 回答要准确、简洁
+3. 严禁编造文档中不存在的信息
+
+【回答格式要求】
+- 当知识库有相关内容时，直接回答问题，不需要额外说明
+- 当知识库无相关内容时，必须在回答开头添加："知识库中未检索到相关内容，以下是基于通用知识的回答："
 
 请用中文回答用户的问题。"""
 
@@ -160,16 +162,13 @@ class ChatService:
             )
 
             if not search_results:
-                return {
-                    "reply": "知识库中未找到与您问题相关的信息，请尝试其他问题或联系教师。",
-                    "references": []
-                }
-
-            # 构建上下文
-            context, references = self.agent_graph.knowledge_service.build_context(
-                search_results,
-                max_content_length=800
-            )
+                context = "（知识库中未检索到相关内容）"
+                references = []
+            else:
+                context, references = self.agent_graph.knowledge_service.build_context(
+                    search_results,
+                    max_content_length=800
+                )
 
             # 构建提示词
             system_prompt = f"""{self.SYSTEM_PROMPT_KNOWLEDGE}

@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="dashboard">
     <div class="flex items-center justify-between mb-6">
       <div>
@@ -121,7 +121,13 @@
         <div class="bg-background-primary border border-border rounded-xl p-6 shadow-soft">
           <h3 class="text-lg font-semibold text-text-primary mb-4">快捷入口</h3>
           <div class="grid grid-cols-2 gap-3">
-            <button v-for="action in quickActions" :key="action.id" class="flex flex-col items-center p-4 rounded-xl hover:bg-background-secondary transition-colors">
+            <button
+              v-for="action in quickActions"
+              :key="action.id"
+              type="button"
+              @click="handleQuickAction(action)"
+              class="flex flex-col items-center p-4 rounded-xl hover:bg-background-secondary transition-colors cursor-pointer active:scale-95"
+            >
               <div class="w-12 h-12 rounded-full flex items-center justify-center mb-2" :class="action.bgColor">
                 <svg class="w-6 h-6" :class="action.iconColor" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path :d="action.icon" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" />
@@ -135,7 +141,13 @@
         <div class="bg-background-primary border border-border rounded-xl p-6 shadow-soft">
           <h3 class="text-lg font-semibold text-text-primary mb-4">推荐问题</h3>
           <div class="space-y-2">
-            <button v-for="question in recommendedQuestions" :key="question" class="w-full text-left px-3 py-2 rounded-lg hover:bg-background-secondary transition-colors text-sm text-text-secondary">
+            <button
+              v-for="question in recommendedQuestions"
+              :key="question"
+              type="button"
+              @click="askRecommendedQuestion(question)"
+              class="w-full text-left px-3 py-2 rounded-lg hover:bg-background-secondary transition-colors text-sm text-text-secondary cursor-pointer"
+            >
               <svg class="w-4 h-4 inline-block mr-2 text-brand-mint" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
@@ -165,9 +177,13 @@
 
 <script setup>
 import { ref, computed } from 'vue';
+import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
+import { useSmartChatStore } from '../stores/smartChat';
 
+const router = useRouter();
 const authStore = useAuthStore();
+const smartChatStore = useSmartChatStore();
 
 const userName = computed(() => {
   return authStore.user?.real_name || authStore.user?.username || '同学';
@@ -191,15 +207,24 @@ const recentRecords = ref([
 ]);
 
 const quickActions = ref([
-  { id: '1', name: '课程中心', icon: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253', bgColor: 'bg-brand-light', iconColor: 'text-brand-dark' },
-  { id: '2', name: '电子书库', icon: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253', bgColor: 'bg-accent-lavender/30', iconColor: 'text-accent-lavender' },
-  { id: '3', name: '智能问答', icon: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z', bgColor: 'bg-accent-coral/30', iconColor: 'text-accent-coral' },
-  { id: '4', name: '学习报告', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z', bgColor: 'bg-accent-sky/30', iconColor: 'text-accent-sky' }
+  { id: 'courses', name: '课程中心', route: 'courses', icon: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253', bgColor: 'bg-brand-light', iconColor: 'text-brand-dark' },
+  { id: 'library', name: '电子书库', route: 'library', icon: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253', bgColor: 'bg-accent-lavender/30', iconColor: 'text-accent-lavender' },
+  { id: 'chat', name: '智能问答', route: 'chat', icon: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z', bgColor: 'bg-accent-coral/30', iconColor: 'text-accent-coral' },
+  { id: 'learning', name: '学习报告', route: 'learning', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z', bgColor: 'bg-accent-sky/30', iconColor: 'text-accent-sky' }
 ]);
 
+const handleQuickAction = (action) => {
+  router.push({ name: action.route });
+};
+
+const askRecommendedQuestion = (question) => {
+  smartChatStore.setPendingQuestion(question);
+  router.push({ name: 'chat' });
+};
+
 const recommendedQuestions = ref([
-  '数据结构中栈和队列的区别是什么？',
   '什么是时间复杂度和空间复杂度？',
-  '操作系统中的进程和线程有什么区别？'
+  '操作系统中的进程和线程有什么区别？',
+  'TCP三次握手的过程是怎样的？'
 ]);
 </script>

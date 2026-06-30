@@ -7,11 +7,12 @@
   >
     <div 
       :class="[
-        'message-avatar w-10 h-10 rounded-full flex items-center justify-center text-lg flex-shrink-0',
-        message.role === 'user' ? 'bg-brand-mint text-white' : 'bg-background-secondary text-text-secondary'
+        'message-avatar w-10 h-10 rounded-full flex items-center justify-center text-lg flex-shrink-0 overflow-hidden',
+        message.role === 'user' ? 'bg-brand-mint text-white' : 'bg-white'
       ]"
     >
-      {{ message.role === 'user' ? '👤' : '🤖' }}
+      <template v-if="message.role === 'user'">👤</template>
+      <img v-else src="/ai.png" alt="AI" class="w-full h-full object-cover" />
     </div>
     
     <div 
@@ -22,7 +23,7 @@
           : 'bg-background-secondary text-text-primary rounded-bl-md'
       ]"
     >
-      <p class="whitespace-pre-wrap break-words">{{ formatContent(message.content) }}</p>
+      <p class="whitespace-pre-wrap break-words" v-html="formatContent(message.content)"></p>
       
       <div v-if="message.references && message.references.length > 0" class="mt-2 flex flex-wrap gap-1">
         <span 

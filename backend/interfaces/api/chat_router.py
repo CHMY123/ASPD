@@ -31,8 +31,11 @@ logger = logging.getLogger(__name__)
 def debug_print(msg: str):
     """强制输出调试信息（stdout + stderr 双写）"""
     text = f"[CHAT] {msg}"
-    print(text, flush=True, file=sys.stdout)
-    print(text, flush=True, file=sys.stderr)
+    text = text.replace('❌', '[ERR]').replace('⚠', '[WARN]')
+    sys.stdout.write(text + '\n')
+    sys.stdout.flush()
+    sys.stderr.write(text + '\n')
+    sys.stderr.flush()
 
 router = APIRouter(prefix="/api/chat", tags=["问答"])
 
@@ -540,7 +543,7 @@ async def chat_multi_agent(
         
         # 检查是否有真实数据警告
         if debug_info.get("warning"):
-            debug_print(f"  ⚠️ 警告: {debug_info.get('warning')}")
+            debug_print(f"  [WARNING] 警告: {debug_info.get('warning')}")
         
         # 6. 保存会话数据
         debug_print("步骤6: 保存会话数据...")
@@ -608,6 +611,97 @@ async def chat_multi_agent(
                 "code": "MULTI_AGENT_ERROR"
             }
         )
+
+
+@router.post(
+    "/multi-agent/stream",
+    responses={
+        401: {"description": "未授权"},
+        500: {"description": "服务器错误"}
+    }
+)
+async def chat_multi_agent_stream(
+    request: ChatRequest,
+    service: ChatService = Depends(get_chat_service),
+    current_user: dict = Depends(require_authentication)
+):
+    """
+    多Agent协同对话模式（流式输出SSE）
+
+    执行完整的多Agent工作流：理解→检索→推理→生成→验证→推荐
+    实时推送每个步骤的状态更新。
+    """
+    user_id = current_user.get("id") if not request.user_id or request.user_id == "anonymous" else request.user_id
+
+    async def event_generator():
+        import asyncio
+        queue = asyncio.Queue()
+
+        async def step_callback(step_id, status, output=None):
+            event_data = {
+                'type': 'step',
+                'step_id': step_id,
+                'status': status,
+                'output': output or {}
+            }
+            await queue.put(f"data: {json.dumps(event_data, ensure_ascii=False)}\n\n")
+
+        async def run_agent():
+            try:
+                agent = get_coordination_agent()
+
+                result = await agent.process_query(
+                    query=request.message,
+                    context={
+                        "user_id": user_id,
+                        "user_level": "intermediate",
+                        "mode": "multi_agent"
+                    },
+                    step_callback=step_callback
+                )
+
+                final_event = {
+                    'type': 'final',
+                    'response': result.get("answer", "暂无回答"),
+                    'references': result.get("citations", []),
+                    'agent': "多Agent协同系统",
+                    'workflow_details': result.get("workflow_details", {}),
+                    'confidence': result.get("confidence", 0.0),
+                    'validation_score': result.get("validation_score", 0.0),
+                    'related_knowledge': result.get("related_knowledge", []),
+                    'learning_path': result.get("learning_path", []),
+                    'execution_time': result.get("execution_time", 0.0)
+                }
+                await queue.put(f"data: {json.dumps(final_event, ensure_ascii=False)}\n\n")
+                await queue.put(None)
+            except Exception as e:
+                import traceback
+                logger.error(f"多Agent流式对话错误: {e}", exc_info=True)
+                await queue.put(f"data: {json.dumps({'type': 'error', 'data': str(e)}, ensure_ascii=False)}\n\n")
+                await queue.put(None)
+
+        asyncio.create_task(run_agent())
+
+        while True:
+            event = await queue.get()
+            if event is None:
+                break
+            yield event
+            await asyncio.sleep(0.1)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+            "Access-Control-Allow-Origin": "http://localhost:5173",
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        }
+    )
 
 
 @router.get("/{thread_id}/stats", responses={401: {"description": "未授权"}})

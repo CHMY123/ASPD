@@ -29,8 +29,11 @@ logger = logging.getLogger(__name__)
 def force_print(msg: str):
     """强制输出调试信息到标准输出（同时写 stderr 兜底）"""
     text = f"[AGENT] {msg}"
-    print(text, flush=True, file=sys.stdout)
-    print(text, flush=True, file=sys.stderr)  # stderr 兜底确保可见
+    text = text.replace('❌', '[ERR]').replace('⚠', '[WARN]')
+    sys.stdout.write(text + '\n')
+    sys.stdout.flush()
+    sys.stderr.write(text + '\n')
+    sys.stderr.flush()
 
 
 # ==================== JSON提取工具函数 ====================
@@ -875,7 +878,7 @@ class GenerationAgent(BaseAgent):
             logger.debug(f"[GenerationAgent] 知识源[{idx+1}]: data_source={data_source}, title='{title}', is_real_data={is_real}, content_len={len(source.get('content', ''))}")
         
         if not self.llm_client:
-            force_print("  ⚠️ LLM客户端不可用，使用回退方案")
+            force_print("  [WARNING] LLM客户端不可用，使用回退方案")
             logger.warning("[GenerationAgent] LLM客户端不可用，使用回退方案")
             result = await self._fallback_generation(original_query, knowledge_sources, logical_conclusions, requires_database_query, intent)
             force_print("【GenerationAgent.execute】完成（回退）")
@@ -905,39 +908,18 @@ class GenerationAgent(BaseAgent):
         force_print(f"  has_real_data: {has_real_data}")
         logger.debug(f"[GenerationAgent] 构建的上下文长度: {len(context_str)}字符")
         
-        # === 关键检测：如果知识源为空或全部为无结果标记，跳过LLM直接返回无结果 ===
-        # 注意：空列表 [] 也必须拦截！否则LLM在空上下文下会用自己的训练数据生成答案
-        should_skip_llm = False
-        skip_reason = ""
+        # 检查知识源状态，用于标记回答来源
+        has_real_knowledge = False
+        if knowledge_sources:
+            # 过滤掉no_results标记的知识源
+            knowledge_sources = [s for s in knowledge_sources if not s.get('metadata', {}).get('no_results', False)]
+            has_real_knowledge = any(s.get('metadata', {}).get('is_real_data', False) for s in knowledge_sources)
         
+        # 如果知识源为空，构建空上下文让LLM处理
         if not knowledge_sources:
-            should_skip_llm = True
-            skip_reason = "知识源为空（向量检索或数据库查询均无返回）"
-        elif all(s.get('metadata', {}).get('no_results', False) for s in knowledge_sources):
-            should_skip_llm = True
-            skip_reason = "所有知识源均为 no_results 标记"
-        
-        if should_skip_llm:
-            force_print(f"  ⚠️ 跳过LLM: {skip_reason}")
-            logger.warning(f"[GenerationAgent] 跳过LLM: {skip_reason}")
-            
-            return {
-                'answer': '抱歉，目前知识库中暂未找到与您查询相关的信息。请尝试换个问法或联系管理员添加相关内容。',
-                'citations': [],
-                'answer_metadata': {
-                    'length': 0,
-                    'source_count': 0,
-                    'generation_time': datetime.now().isoformat(),
-                    'data_source_type': 'no_results',
-                    'has_real_data': False,
-                    'no_results': True,
-                    'debug_info': {
-                        'intent': intent,
-                        'requires_database_query': requires_database_query,
-                        'skip_reason': skip_reason
-                    }
-                }
-            }
+            force_print(f"  [INFO] 知识源为空，使用通用知识回答模式")
+            logger.info(f"[GenerationAgent] 知识源为空，使用通用知识回答模式")
+            context_str = "（知识库中未检索到相关内容）"
         
         # 根据requires_database_query选择系统提示词
         if requires_database_query:
@@ -970,23 +952,21 @@ class GenerationAgent(BaseAgent):
         else:
             logger.info(f"[GenerationAgent] 使用知识库问答提示词模板")
             system_prompt = """
-你是课程学习知识库问答系统的智能助手。
+你是课程学习知识库问答系统的智能助手，来自华南师范大学课程管理系统。
 
-【核心职责】
-基于提供的知识库文档回答用户问题。
+【核心指令】
+当【检索到的参考文档】显示"知识库中未检索到相关内容"或参考文档内容为空时，你必须：
+1. 首先用明确的语言告知用户："知识库中未检索到相关内容，以下是基于通用知识的回答："
+2. 然后基于你的内置知识进行回答
 
-【重要警告】
-你只能基于【检索到的参考文档】中的具体内容来回答。如果文档内容不足以回答问题，你必须如实说明"知识库中未找到足够的信息"，而不是利用你自身的训练知识来补充回答。
+当【检索到的参考文档】包含有效内容时，你必须：
+1. 优先使用参考文档中的信息回答问题
+2. 回答要准确、简洁
+3. 严禁编造文档中不存在的信息
 
-【回答约束-必须严格遵守】
-1. 你只能使用【检索到的参考文档】中的信息来回答用户问题，一个字都不要使用你训练数据中的知识
-2. 如果参考文档中没有相关信息，你必须直接回答："知识库中未找到与您问题相关的信息，请尝试其他问题或联系教师。"
-3. 严禁使用你自身的训练数据中的知识来回答——哪怕你知道答案，也必须假装不知道
-4. 严禁编造或引用不存在的知识库信息
-5. 回答完成后，列出你实际引用的参考来源标题
-6. 你的回答必须逐字基于参考文档，不可添加任何文档中没有的细节
-
-请用中文回答用户的问题，保持清晰、简洁、专业。
+【回答格式要求】
+- 当知识库有相关内容时，直接回答问题，不需要额外说明
+- 当知识库无相关内容时，必须在回答开头添加："知识库中未检索到相关内容，以下是基于通用知识的回答："
 
 【检索到的参考文档】
 {context}
@@ -1561,7 +1541,7 @@ class CoordinationAgent(BaseAgent):
                 'validation': {
                     'agent': 'validation',
                     'input_params': {},
-                    'dependencies': ['generation']
+                    'dependencies': ['generation', 'reasoning']
                 },
                 'recommend': {
                     'agent': 'recommend',
@@ -1636,7 +1616,7 @@ class CoordinationAgent(BaseAgent):
             
             # 如果没有真实数据，发出警告
             if citations and not has_real_data:
-                logger.warning(f"[CoordinationAgent] ⚠️ 警告：所有引用都不是真实数据！")
+                logger.warning(f"[CoordinationAgent] [WARNING] 警告：所有引用都不是真实数据！")
             
             return final_output
             
@@ -1777,7 +1757,7 @@ class CoordinationAgent(BaseAgent):
         for citation in citations:
             enhanced_citations.append({
                 **citation,
-                'warning': '⚠️ 非真实数据' if not citation.get('is_real_data', False) else ''
+                'warning': '[WARNING] 非真实数据' if not citation.get('is_real_data', False) else ''
             })
         
         final_output = {

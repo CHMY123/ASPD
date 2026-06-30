@@ -7,7 +7,7 @@
           <button @click="toggleSelectAll" class="px-3 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-background-dark transition-colors">
             {{ isAllSelected ? '取消全选' : '全选' }}
           </button>
-          <button @click="confirmBatchDelete" class="px-3 py-2 bg-error-red text-white rounded-lg text-sm font-semibold hover:bg-error-red-dark transition-colors focus:outline-none focus:ring-2 focus:ring-error-red focus:ring-offset-2" :disabled="selectedIds.length === 0" :class="selectedIds.length === 0 ? 'opacity-50 cursor-not-allowed' : ''" aria-label="批量删除课程">
+          <button @click="confirmBatchDelete" class="px-4 py-2.5 bg-error text-white rounded-lg text-base font-black hover:bg-red-700 transition-all focus:outline-none focus:ring-2 focus:ring-error focus:ring-offset-2 shadow-lg hover:shadow-xl hover:scale-105" :disabled="selectedIds.length === 0" :class="selectedIds.length === 0 ? 'opacity-50 cursor-not-allowed' : ''" aria-label="批量删除课程">
             批量删除 ({{ selectedIds.length }})
           </button>
         </div>
@@ -19,9 +19,14 @@
         </button>
         <select v-model="selectedSemester" class="px-4 py-2 border border-border rounded-lg text-sm bg-background-primary">
           <option value="">全部学期</option>
+          <option value="2023-2024-1">2023-2024学年第一学期</option>
+          <option value="2023-2024-2">2023-2024学年第二学期</option>
           <option value="2024-2025-1">2024-2025学年第一学期</option>
           <option value="2024-2025-2">2024-2025学年第二学期</option>
-          <option value="2023-2024-1">2023-2024学年第一学期</option>
+          <option value="2025-2026-1">2025-2026学年第一学期</option>
+          <option value="2025-2026-2">2025-2026学年第二学期</option>
+          <option value="2026-2027-1">2026-2027学年第一学期</option>
+          <option value="2026-2027-2">2026-2027学年第二学期</option>
         </select>
         <select v-model="selectedType" class="px-4 py-2 border border-border rounded-lg text-sm bg-background-primary">
           <option value="">全部类型</option>
@@ -45,8 +50,13 @@
 
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       <div v-for="course in filteredCourses" :key="course.id" class="course-card bg-background-primary border border-border rounded-xl overflow-hidden shadow-soft hover:shadow-medium transition-all cursor-pointer group relative" @click="showCourseDetail(course)">
-        <div v-if="isEditMode" class="absolute top-2 left-2 z-10" @click.stop>
+        <div v-if="isEditMode" class="absolute top-2 left-2 z-10 flex gap-2" @click.stop>
           <input type="checkbox" :checked="selectedIds.includes(course.id)" @change="toggleSelection(course.id)" class="w-5 h-5 rounded border-border text-brand-mint focus:ring-brand-mint cursor-pointer" />
+          <button @click="editCourse(course)" class="p-1.5 bg-brand-mint/90 text-white rounded-lg hover:bg-brand-mint transition-colors shadow-md" title="编辑课程">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+          </button>
         </div>
         <div class="relative h-32 bg-background-dark overflow-hidden">
           <LazyImage 
@@ -94,18 +104,18 @@
         </div>
 
         <div class="px-4 pb-4 text-xs text-text-light space-y-1">
-          <div v-if="course.schedule" class="flex items-center gap-2">
+          <div v-if="course.class_time || course.schedule" class="flex items-center gap-2">
             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <span>{{ course.schedule }}</span>
+            <span>{{ course.class_time || course.schedule }}</span>
           </div>
-          <div v-if="course.location" class="flex items-center gap-2">
+          <div v-if="course.class_location || course.location" class="flex items-center gap-2">
             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
-            <span>{{ course.location }}</span>
+            <span>{{ course.class_location || course.location }}</span>
           </div>
         </div>
       </div>
@@ -121,20 +131,20 @@
       <p class="text-sm text-text-light mt-1">请联系教务系统确认选课情况</p>
     </div>
 
-    <!-- 添加课程模态框 -->
+    <!-- 添加/编辑课程模态框 -->
     <Teleport to="body">
-      <div v-if="showAddModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="showAddModal = false">
+      <div v-if="showAddModal || showEditModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="closeCourseModal">
         <div class="bg-background-primary rounded-xl p-6 w-full max-w-lg mx-4 shadow-xl max-h-[90vh] overflow-y-auto">
           <div class="flex items-center justify-between mb-6">
-            <h3 class="text-xl font-semibold text-text-primary">添加课程</h3>
-            <button @click="showAddModal = false" class="p-2 hover:bg-background-dark rounded-lg transition-colors">
+            <h3 class="text-xl font-semibold text-text-primary">{{ editingCourse ? '编辑课程' : '添加课程' }}</h3>
+            <button @click="closeCourseModal" class="p-2 hover:bg-background-dark rounded-lg transition-colors">
               <svg class="w-5 h-5 text-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           </div>
           
-          <form @submit.prevent="addCourse" class="space-y-4">
+          <form @submit.prevent="editingCourse ? updateCourse() : addCourse()" class="space-y-4">
             <div>
               <label class="block text-sm font-medium text-text-primary mb-1">课程代码 <span class="text-error-red">*</span></label>
               <input v-model="newCourse.course_code" type="text" required class="w-full px-4 py-2 border rounded-lg bg-background-primary focus:border-brand-mint focus:outline-none focus:ring-2 focus:ring-brand-mint/20 transition-colors" :class="errors.course_code ? 'border-error-red' : 'border-border'" placeholder="如: CS101" />
@@ -170,12 +180,14 @@
               <label class="block text-sm font-medium text-text-primary mb-1">开学学期 <span class="text-error-red">*</span></label>
               <select v-model="newCourse.semester" required class="w-full px-4 py-2 border rounded-lg bg-background-primary focus:border-brand-mint focus:outline-none focus:ring-2 focus:ring-brand-mint/20 transition-colors" :class="errors.semester ? 'border-error-red' : 'border-border'">
                 <option value="">请选择</option>
-                <option value="2024-2025-1">2024-2025学年第一学期</option>
-                <option value="2024-2025-2">2024-2025学年第二学期</option>
                 <option value="2023-2024-1">2023-2024学年第一学期</option>
                 <option value="2023-2024-2">2023-2024学年第二学期</option>
+                <option value="2024-2025-1">2024-2025学年第一学期</option>
+                <option value="2024-2025-2">2024-2025学年第二学期</option>
                 <option value="2025-2026-1">2025-2026学年第一学期</option>
                 <option value="2025-2026-2">2025-2026学年第二学期</option>
+                <option value="2026-2027-1">2026-2027学年第一学期</option>
+                <option value="2026-2027-2">2026-2027学年第二学期</option>
               </select>
               <p v-if="errors.semester" class="text-xs text-error-red mt-1">{{ errors.semester }}</p>
             </div>
@@ -232,15 +244,15 @@
               <input ref="coverInput" type="file" accept="image/jpeg,image/png" class="hidden" @change="handleCoverChange" />
             </div>
             <div class="flex gap-3">
-              <button type="button" @click="showAddModal = false" class="flex-1 px-4 py-2 border border-border rounded-lg text-text-secondary hover:bg-background-dark transition-colors">
+              <button type="button" @click="closeCourseModal" class="flex-1 px-4 py-2 border border-border rounded-lg text-text-secondary hover:bg-background-dark transition-colors">
                 取消
               </button>
-              <button type="button" @click="addCourse" :disabled="isUploading" class="flex-1 px-4 py-2 bg-brand-mint text-white rounded-lg hover:bg-brand-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+              <button type="button" @click="editingCourse ? updateCourse() : addCourse()" :disabled="isUploading" class="flex-1 px-4 py-2 bg-brand-mint text-white rounded-lg hover:bg-brand-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
                 <svg v-if="isUploading" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                   <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                {{ isUploading ? '上传中...' : '添加' }}
+                {{ isUploading ? '保存中...' : (editingCourse ? '保存' : '添加') }}
               </button>
             </div>
           </form>
@@ -326,6 +338,8 @@ const searchQuery = ref('');
 const selectedSemester = ref('');
 const selectedType = ref('');
 const showAddModal = ref(false);
+const showEditModal = ref(false);
+const editingCourse = ref(null);
 const coverPreview = ref('');
 const coverFile = ref(null);
 const isUploading = ref(false);
@@ -349,6 +363,57 @@ const toggleEditMode = () => {
     selectedIds.value = [];
     isAllSelected.value = false;
   }
+};
+
+const editCourse = (course) => {
+  editingCourse.value = course;
+  newCourse.value = {
+    course_code: course.course_code || '',
+    course_name: course.course_name || '',
+    credits: course.credits || 3.0,
+    hours: course.hours || 48,
+    semester: course.semester || '2024-2025-1',
+    course_type: course.course_type || '',
+    teacher_name: course.teacher_name || '',
+    teacher_title: course.teacher_title || '',
+    description: course.description || '',
+    schedule: course.schedule || course.class_time || '',
+    location: course.location || course.class_location || '',
+    class_location: course.class_location || course.location || '',
+    class_time: course.class_time || course.schedule || '',
+    cover: course.cover || ''
+  };
+  coverPreview.value = course.cover || '';
+  coverFile.value = null;
+  showEditModal.value = true;
+};
+
+const closeCourseModal = () => {
+  showAddModal.value = false;
+  showEditModal.value = false;
+  editingCourse.value = null;
+  errors.value = {};
+  coverPreview.value = '';
+  coverFile.value = null;
+  if (coverInput.value) {
+    coverInput.value.value = '';
+  }
+  newCourse.value = {
+    course_code: '',
+    course_name: '',
+    credits: 0,
+    hours: 0,
+    semester: '2024-2025-1',
+    course_type: '',
+    teacher_name: '',
+    teacher_title: '',
+    description: '',
+    schedule: '',
+    location: '',
+    class_location: '',
+    class_time: '',
+    cover: ''
+  };
 };
 
 const toggleSelection = (id) => {
@@ -523,7 +588,6 @@ const validateForm = () => {
 };
 
 const addCourse = async () => {
-  // 验证表单
   if (!validateForm()) {
     return;
   }
@@ -531,7 +595,6 @@ const addCourse = async () => {
   isUploading.value = true;
   
   try {
-    // 上传封面（如果有）
     if (coverFile.value) {
       try {
         const formData = new FormData();
@@ -555,7 +618,6 @@ const addCourse = async () => {
       }
     }
     
-    // 调用后端API添加课程
     const token = localStorage.getItem('access_token') || localStorage.getItem('token');
     const response = await fetch('http://localhost:8000/api/knowledge/courses', {
       method: 'POST',
@@ -584,7 +646,6 @@ const addCourse = async () => {
     if (response.ok) {
       const result = await response.json();
       console.log('课程添加成功:', result);
-      // 重新加载课程列表
       await loadCourses();
     } else {
       const error = await response.json();
@@ -595,29 +656,82 @@ const addCourse = async () => {
     console.error('添加课程异常:', error);
     alert('添加课程失败，请重试');
   } finally {
-    showAddModal.value = false;
+    closeCourseModal();
     isUploading.value = false;
+  }
+};
+
+const updateCourse = async () => {
+  if (!validateForm()) {
+    return;
+  }
+  
+  isUploading.value = true;
+  
+  try {
+    if (coverFile.value) {
+      try {
+        const formData = new FormData();
+        formData.append('file', coverFile.value);
+        
+        const token = localStorage.getItem('access_token') || localStorage.getItem('token');
+        const response = await fetch('http://localhost:8000/api/upload/course-cover/temp', {
+          method: 'POST',
+          body: formData,
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+        });
+        
+        if (response.ok) {
+          const result = await response.json();
+          newCourse.value.cover = result.url;
+        } else {
+          console.warn('封面上传失败，将继续更新课程');
+        }
+      } catch (error) {
+        console.warn('封面上传异常，将继续更新课程:', error);
+      }
+    }
     
-    // 重置表单
-    newCourse.value = {
-      course_code: '',
-      course_name: '',
-      credits: 0,
-      hours: 0,
-      semester: '2024-2025-1',
-      course_type: '',
-      teacher_name: '',
-      teacher_title: '',
-      description: '',
-      schedule: '',
-      location: '',
-      class_location: '',
-      class_time: '',
-      cover: ''
-    };
-    coverPreview.value = '';
-    coverFile.value = null;
-    errors.value = {};
+    const token = localStorage.getItem('access_token') || localStorage.getItem('token');
+    const response = await fetch(`http://localhost:8000/api/knowledge/courses/${editingCourse.value.id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify({
+        course_code: newCourse.value.course_code,
+        course_name: newCourse.value.course_name,
+        credits: newCourse.value.credits,
+        hours: newCourse.value.hours,
+        semester: newCourse.value.semester,
+        course_type: newCourse.value.course_type,
+        description: newCourse.value.description,
+        teacher_name: newCourse.value.teacher_name,
+        teacher_title: newCourse.value.teacher_title,
+        schedule: newCourse.value.class_time || newCourse.value.schedule || '',
+        location: newCourse.value.class_location || newCourse.value.location || '',
+        class_location: newCourse.value.class_location || newCourse.value.location || '',
+        class_time: newCourse.value.class_time || newCourse.value.schedule || '',
+        cover: newCourse.value.cover
+      })
+    });
+    
+    if (response.ok) {
+      const result = await response.json();
+      console.log('课程更新成功:', result);
+      await loadCourses();
+    } else {
+      const error = await response.json();
+      console.error('更新课程失败:', error.detail || '未知错误');
+      alert(`更新课程失败: ${error.detail || '未知错误'}`);
+    }
+  } catch (error) {
+    console.error('更新课程异常:', error);
+    alert('更新课程失败，请重试');
+  } finally {
+    closeCourseModal();
+    isUploading.value = false;
   }
 };
 
@@ -628,7 +742,7 @@ const isLoading = ref(true);
 async function loadCourses() {
   isLoading.value = true;
   try {
-    const token = localStorage.getItem('access_token');
+    const token = localStorage.getItem('access_token') || localStorage.getItem('token');
     const response = await fetch('http://localhost:8000/api/knowledge/courses', {
       headers: token ? { 'Authorization': `Bearer ${token}` } : {}
     });
@@ -645,8 +759,10 @@ async function loadCourses() {
         teacher_name: c.teacher_name || '待定',
         teacher_title: c.teacher_title || '讲师',
         description: c.description || '',
-        schedule: c.schedule || '',
-        location: c.location || '',
+        schedule: c.schedule || c.class_time || '',
+        location: c.location || c.class_location || '',
+        class_time: c.class_time || c.schedule || '',
+        class_location: c.class_location || c.location || '',
         cover: c.cover || ''
       }));
     } else {

@@ -281,7 +281,7 @@ class TaskScheduler:
                 # 步骤开始回调
                 if step_callback:
                     logger.info(f"[TaskScheduler] 步骤 {task_id} 开始执行")
-                    step_callback(task_id, 'running')
+                    await step_callback(task_id, 'running')
                 
                 # 执行任务
                 await self._execute_task(task)
@@ -289,7 +289,7 @@ class TaskScheduler:
                 # 步骤完成回调
                 if step_callback:
                     logger.info(f"[TaskScheduler] 步骤 {task_id} 执行完成")
-                    step_callback(task_id, 'completed', task.output or {})
+                    await step_callback(task_id, 'completed', task.output or {})
             
             # 记录当前层级执行结果
             for task_id in level:

@@ -187,24 +187,35 @@ async def get_course_list(
 )
 async def get_courses(
     service: KnowledgeService = Depends(get_knowledge_service),
-    current_user: dict = Depends(require_authentication)
+    current_user: dict = Depends(require_authentication),
+    my_courses: bool = Query(False, description="是否只返回当前用户的课程")
 ):
     """
-    获取完整课程列表（包含详情）
+    获取课程列表（包含详情）
 
-    返回所有课程的详细信息。
+    Args:
+        my_courses: 是否只返回当前用户已选的课程
     """
     import logging
     logger = logging.getLogger(__name__)
     try:
-        # 从数据库查询课程列表
-        try:
+        user_id = current_user.get("id")
+        user_role = current_user.get("role")
+
+        if my_courses and user_role != "admin":
+            rows = await fetch_sql(
+                """
+                SELECT c.* FROM courses c 
+                INNER JOIN enrollments e ON c.id = e.course_id 
+                WHERE e.user_id = %s 
+                ORDER BY c.created_at DESC
+                """,
+                user_id
+            )
+        else:
             rows = await fetch_sql(
                 "SELECT * FROM courses ORDER BY created_at DESC"
             )
-        except Exception as db_err:
-            logger.warning(f"数据库查询courses表失败: {db_err}")
-            rows = []
 
         if rows:
             courses = []
@@ -230,7 +241,6 @@ async def get_courses(
                 courses.append(course)
             return courses
 
-        # 数据库无数据时返回空列表
         logger.info("数据库courses表为空，返回空列表")
         return []
 
@@ -514,7 +524,7 @@ async def add_book(
             ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """,
             book_id,
-            book_data.get('isbn', ''),
+            book_data.get('isbn') or None,
             book_data.get('title', ''),
             book_data.get('subtitle', ''),
             book_data.get('author', ''),
@@ -540,6 +550,71 @@ async def add_book(
     except Exception as e:
         logger.error(f"添加书籍失败: {e}")
         raise HTTPException(status_code=500, detail=f"添加书籍失败: {str(e)}")
+
+
+@router.put(
+    "/books/{book_id}",
+    response_model=dict,
+    responses={401: {"description": "未授权"}, 404: {"description": "书籍不存在"}}
+)
+async def update_book(
+    book_id: str,
+    book_data: dict,
+    current_user: dict = Depends(require_authentication)
+):
+    """
+    更新书籍信息
+
+    根据书籍ID更新书籍的详细信息。
+    """
+    import logging
+    from infrastructure.database import execute_sql, fetch_sql
+    from datetime import datetime
+    
+    logger = logging.getLogger(__name__)
+    try:
+        # 检查书籍是否存在
+        rows = await fetch_sql("SELECT id FROM books WHERE id = %s LIMIT 1", book_id)
+        if not rows:
+            raise HTTPException(status_code=404, detail="书籍不存在")
+        
+        # 更新数据库
+        await execute_sql(
+            """
+            UPDATE books SET
+                isbn = %s, title = %s, subtitle = %s, author = %s, translator = %s,
+                publisher = %s, publish_date = %s, cover = %s, summary = %s, 
+                category = %s, table_of_contents = %s, updated_at = %s
+            WHERE id = %s
+            """,
+            book_data.get('isbn') or None,
+            book_data.get('title', ''),
+            book_data.get('subtitle', ''),
+            book_data.get('author', ''),
+            book_data.get('translator', ''),
+            book_data.get('publisher', ''),
+            book_data.get('publish_date', ''),
+            book_data.get('cover_url', ''),
+            book_data.get('summary', ''),
+            book_data.get('category', ''),
+            book_data.get('table_of_contents', ''),
+            datetime.now().isoformat(),
+            book_id
+        )
+        
+        logger.info(f"书籍更新成功: {book_id}")
+        
+        return {
+            "success": True,
+            "message": "书籍更新成功",
+            "book_id": book_id
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"更新书籍失败: {e}")
+        raise HTTPException(status_code=500, detail=f"更新书籍失败: {str(e)}")
 
 
 @router.post(
@@ -584,6 +659,103 @@ async def batch_delete_books(
     except Exception as e:
         logger.error(f"批量删除书籍失败: {e}")
         raise HTTPException(status_code=500, detail=f"批量删除书籍失败: {str(e)}")
+
+
+@router.put(
+    "/courses/{course_id}",
+    response_model=dict,
+    responses={401: {"description": "未授权"}, 404: {"description": "课程不存在"}}
+)
+async def update_course(
+    course_id: str,
+    course_data: dict,
+    current_user: dict = Depends(require_authentication)
+):
+    """
+    更新课程信息
+
+    根据课程ID更新课程的详细信息。
+    """
+    import logging
+    from infrastructure.database import execute_sql, fetch_sql
+    from datetime import datetime
+    
+    logger = logging.getLogger(__name__)
+    try:
+        # 检查课程是否存在
+        rows = await fetch_sql("SELECT id FROM courses WHERE id = %s LIMIT 1", course_id)
+        if not rows:
+            raise HTTPException(status_code=404, detail="课程不存在")
+        
+        update_fields = []
+        params = []
+        
+        if 'course_code' in course_data:
+            update_fields.append("course_code = %s")
+            params.append(course_data['course_code'])
+        if 'course_name' in course_data:
+            update_fields.append("course_name = %s")
+            params.append(course_data['course_name'])
+        if 'credits' in course_data:
+            update_fields.append("credits = %s")
+            params.append(course_data['credits'])
+        if 'hours' in course_data:
+            update_fields.append("hours = %s")
+            params.append(course_data['hours'])
+        if 'semester' in course_data:
+            update_fields.append("semester = %s")
+            params.append(course_data['semester'])
+        if 'course_type' in course_data:
+            update_fields.append("course_type = %s")
+            params.append(course_data['course_type'])
+        if 'description' in course_data:
+            update_fields.append("description = %s")
+            params.append(course_data['description'])
+        if 'teacher_name' in course_data:
+            update_fields.append("teacher_name = %s")
+            params.append(course_data['teacher_name'])
+        if 'teacher_title' in course_data:
+            update_fields.append("teacher_title = %s")
+            params.append(course_data['teacher_title'])
+        if 'schedule' in course_data:
+            update_fields.append("schedule = %s")
+            params.append(course_data['schedule'])
+        if 'location' in course_data:
+            update_fields.append("location = %s")
+            params.append(course_data['location'])
+        if 'class_location' in course_data:
+            update_fields.append("class_location = %s")
+            params.append(course_data['class_location'])
+        if 'class_time' in course_data:
+            update_fields.append("class_time = %s")
+            params.append(course_data['class_time'])
+        if 'cover' in course_data:
+            update_fields.append("cover = %s")
+            params.append(course_data['cover'])
+        
+        if not update_fields:
+            raise HTTPException(status_code=400, detail="没有提供需要更新的字段")
+        
+        update_fields.append("updated_at = %s")
+        params.append(datetime.now().isoformat())
+        params.append(course_id)
+        
+        query = "UPDATE courses SET " + ", ".join(update_fields) + " WHERE id = %s"
+        await execute_sql(query, *params)
+        
+        logger.info(f"课程更新成功: {course_id}")
+        
+        return {
+            "success": True,
+            "message": "课程更新成功",
+            "course_id": course_id
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"更新课程失败: {e}")
+        raise HTTPException(status_code=500, detail=f"更新课程失败: {str(e)}")
 
 
 @router.post(

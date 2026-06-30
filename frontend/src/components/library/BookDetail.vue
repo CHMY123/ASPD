@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="book-detail">
     <div class="mb-6 flex items-center gap-4">
       <button
@@ -180,13 +180,11 @@ const props = defineProps({
 const emit = defineEmits(['back', 'select-other', 'quick-question'])
 
 const categories = [
-  { id: 'data-structure', name: '数据结构' },
-  { id: 'algorithm', name: '算法设计' },
-  { id: 'os', name: '操作系统' },
-  { id: 'network', name: '计算机网络' },
-  { id: 'database', name: '数据库原理' },
-  { id: 'ai', name: '人工智能' },
-  { id: 'programming', name: '编程语言' }
+  { id: '基础理论', name: '基础理论' },
+  { id: '系统与网络', name: '系统与网络' },
+  { id: '数据库', name: '数据库' },
+  { id: '人工智能', name: '人工智能' },
+  { id: '编程语言', name: '编程语言' }
 ]
 
 const relatedCourses = [

@@ -44,6 +44,42 @@ const routes = [
     meta: { title: '个人中心', requiresAuth: true }
   },
   {
+    path: '/learning',
+    name: 'learning',
+    component: () => import('../components/LearningRecords.vue'),
+    meta: { title: '学习报告' }
+  },
+  {
+    path: '/admin',
+    name: 'admin',
+    redirect: '/admin/dashboard',
+    meta: { requiresAuth: true, requiresAdmin: true }
+  },
+  {
+    path: '/admin/dashboard',
+    name: 'adminDashboard',
+    component: () => import('../components/admin/AdminDashboard.vue'),
+    meta: { title: '管理后台', requiresAuth: true, requiresAdmin: true }
+  },
+  {
+    path: '/admin/users',
+    name: 'adminUsers',
+    component: () => import('../components/admin/AdminUsers.vue'),
+    meta: { title: '用户管理', requiresAuth: true, requiresAdmin: true }
+  },
+  {
+    path: '/admin/courses',
+    name: 'adminCourses',
+    component: () => import('../components/admin/AdminCourses.vue'),
+    meta: { title: '课程管理', requiresAuth: true, requiresAdmin: true }
+  },
+  {
+    path: '/admin/books',
+    name: 'adminBooks',
+    component: () => import('../components/admin/AdminBooks.vue'),
+    meta: { title: '书籍管理', requiresAuth: true, requiresAdmin: true }
+  },
+  {
     path: '/:pathMatch(.*)*',
     redirect: '/dashboard'
   }
@@ -51,7 +87,14 @@ const routes = [
 
 const router = createRouter({
   history: createWebHistory(),
-  routes
+  routes,
+  scrollBehavior(to, from, savedPosition) {
+    if (savedPosition) {
+      return savedPosition
+    } else {
+      return { top: 0 }
+    }
+  }
 })
 
 router.beforeEach(async (to, from, next) => {
@@ -72,6 +115,13 @@ router.beforeEach(async (to, from, next) => {
         next({ name: 'dashboard' })
         return
       }
+    }
+  }
+  
+  if (to.meta.requiresAdmin) {
+    if (!authStore.user || authStore.user.role !== 'admin') {
+      next({ name: 'dashboard' })
+      return
     }
   }
   

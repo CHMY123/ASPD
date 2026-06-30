@@ -118,7 +118,7 @@ class AuthService:
 
             user = await self.user_repository.get_by_id(user_id)
 
-            if not user or not user.is_active():
+            if not user or not user.is_active:
                 return {"success": False, "message": "用户不存在或已禁用"}
 
             access_token = self.create_access_token(user_id)

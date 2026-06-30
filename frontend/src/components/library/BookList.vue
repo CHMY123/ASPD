@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="library">
     <div class="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
       <div>
@@ -98,13 +98,11 @@ import { ref, computed } from 'vue'
 const emit = defineEmits(['select-book'])
 
 const categories = [
-  { id: 'data-structure', name: '数据结构' },
-  { id: 'algorithm', name: '算法设计' },
-  { id: 'os', name: '操作系统' },
-  { id: 'network', name: '计算机网络' },
-  { id: 'database', name: '数据库原理' },
-  { id: 'ai', name: '人工智能' },
-  { id: 'programming', name: '编程语言' }
+  { id: '基础理论', name: '基础理论' },
+  { id: '系统与网络', name: '系统与网络' },
+  { id: '数据库', name: '数据库' },
+  { id: '人工智能', name: '人工智能' },
+  { id: '编程语言', name: '编程语言' }
 ]
 
 const relatedCourses = [
@@ -121,7 +119,7 @@ const books = ref([
     author: 'Mark Allen Weiss',
     publisher: '机械工业出版社',
     isbn: '978-7-111-22706-9',
-    category: 'data-structure',
+    category: '基础理论',
     summary: '本书采用面向对象的观点，详细介绍了各种数据结构的设计和实现。',
     cover_url: '',
     table_of_contents: '{"chapters": ["引论", "链表", "栈和队列", "树", "散列"]}'
@@ -132,7 +130,7 @@ const books = ref([
     author: 'Thomas H. Cormen',
     publisher: 'MIT Press',
     isbn: '978-0-262-03384-8',
-    category: 'algorithm',
+    category: '基础理论',
     summary: '算法领域的经典教材，全面介绍了常用算法的设计与分析方法。',
     cover_url: '',
     table_of_contents: '{"chapters": ["算法基础", "分治策略", "动态规划", "贪心算法"]}'
@@ -143,7 +141,7 @@ const books = ref([
     author: 'Randal E. Bryant',
     publisher: '机械工业出版社',
     isbn: '978-7-111-54493-7',
-    category: 'os',
+    category: '系统与网络',
     summary: '从程序员的视角详细阐述计算机系统的本质概念。',
     cover_url: '',
     table_of_contents: '{"chapters": ["计算机系统漫游", "信息的表示和处理", "程序的机器级表示"]}'
@@ -154,7 +152,7 @@ const books = ref([
     author: 'Abraham Silberschatz',
     publisher: 'John Wiley & Sons',
     isbn: '978-1-119-32176-7',
-    category: 'os',
+    category: '系统与网络',
     summary: '操作系统领域的经典教材，涵盖操作系统的基本概念和原理。',
     cover_url: '',
     table_of_contents: '{"chapters": ["操作系统概述", "进程管理", "内存管理", "文件系统"]}'
@@ -165,7 +163,7 @@ const books = ref([
     author: 'James F. Kurose',
     publisher: 'Pearson',
     isbn: '978-0-13-359414-0',
-    category: 'network',
+    category: '系统与网络',
     summary: '采用自顶向下方法讲解计算机网络的原理和协议。',
     cover_url: '',
     table_of_contents: '{"chapters": ["应用层", "运输层", "网络层", "数据链路层"]}'
@@ -176,7 +174,7 @@ const books = ref([
     author: 'Abraham Silberschatz',
     publisher: 'McGraw-Hill',
     isbn: '978-1-259-66103-4',
-    category: 'database',
+    category: '数据库',
     summary: '全面介绍数据库系统的基本概念、设计和实现。',
     cover_url: '',
     table_of_contents: '{"chapters": ["引言", "关系模型", "SQL", "事务管理"]}'
@@ -187,7 +185,7 @@ const books = ref([
     author: 'Eric Matthes',
     publisher: '人民邮电出版社',
     isbn: '978-7-115-42857-7',
-    category: 'programming',
+    category: '编程语言',
     summary: '一本针对所有层次Python读者的经典编程入门书籍。',
     cover_url: '',
     table_of_contents: '{"chapters": ["起步", "变量和简单数据类型", "列表", "函数"]}'
@@ -198,7 +196,7 @@ const books = ref([
     author: 'Peter Harrington',
     publisher: '人民邮电出版社',
     isbn: '978-7-115-28160-4',
-    category: 'ai',
+    category: '人工智能',
     summary: '通过实例详细介绍机器学习算法的实现方法。',
     cover_url: '',
     table_of_contents: '{"chapters": ["机器学习基础", "k近邻算法", "决策树", "朴素贝叶斯"]}'

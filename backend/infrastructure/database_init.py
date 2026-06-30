@@ -216,6 +216,53 @@ class DatabaseInitializer:
             except Exception as e:
                 logger.warning(f"迁移失败: 表 {table_name} 添加列 {column_name}: {e}")
 
+        # 创建默认管理员账号（如果不存在）
+        await self._ensure_admin_user()
+
+    async def _ensure_admin_user(self) -> None:
+        """
+        确保存在默认管理员账号
+        """
+        try:
+            # 检查是否已存在管理员
+            admin_exists = await fetchrow_sql(
+                "SELECT COUNT(*) as count FROM users WHERE role = 'admin'"
+            )
+            if admin_exists and admin_exists["count"] > 0:
+                logger.debug("管理员账号已存在，跳过创建")
+                return
+
+            # 生成密码哈希（使用bcrypt）
+            import bcrypt
+            password = "admin123"
+            salt = bcrypt.gensalt()
+            password_hash = bcrypt.hashpw(password.encode("utf-8"), salt).decode("utf-8")
+
+            # 创建管理员账号
+            import uuid
+            from datetime import datetime
+            admin_id = str(uuid.uuid4())
+            now = datetime.now().isoformat()
+
+            await execute_sql(
+                """
+                INSERT INTO users (id, username, email, password_hash, real_name, role, is_active, created_at, updated_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """,
+                admin_id,
+                "admin",
+                "admin@system.local",
+                password_hash,
+                "系统管理员",
+                "admin",
+                True,
+                now,
+                now
+            )
+            logger.info("默认管理员账号创建成功: admin / admin123")
+        except Exception as e:
+            logger.warning(f"创建默认管理员失败: {e}")
+
     async def _get_table_columns(self, table_name: str) -> List[str]:
         """
         获取表列名

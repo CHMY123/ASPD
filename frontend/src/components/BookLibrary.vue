@@ -7,7 +7,7 @@
           <button @click="toggleSelectAll" class="px-3 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-background-dark transition-colors">
             {{ isAllSelected ? '取消全选' : '全选' }}
           </button>
-          <button @click="confirmBatchDelete" class="px-3 py-2 bg-error-red text-white rounded-lg text-sm font-semibold hover:bg-error-red-dark transition-colors focus:outline-none focus:ring-2 focus:ring-error-red focus:ring-offset-2" :disabled="selectedIds.length === 0" :class="selectedIds.length === 0 ? 'opacity-50 cursor-not-allowed' : ''" aria-label="批量删除电子书">
+          <button @click="confirmBatchDelete" class="px-4 py-2.5 bg-error text-white rounded-lg text-base font-black hover:bg-red-700 transition-all focus:outline-none focus:ring-2 focus:ring-error focus:ring-offset-2 shadow-lg hover:shadow-xl hover:scale-105" :disabled="selectedIds.length === 0" :class="selectedIds.length === 0 ? 'opacity-50 cursor-not-allowed' : ''" aria-label="批量删除电子书">
             批量删除 ({{ selectedIds.length }})
           </button>
         </div>
@@ -127,11 +127,18 @@
                 <h2 class="text-xl font-semibold text-text-primary">{{ selectedBook.title }}</h2>
                 <p v-if="selectedBook.subtitle" class="text-sm text-text-secondary mt-1">{{ selectedBook.subtitle }}</p>
               </div>
-              <button @click="selectedBook = null" class="p-2 rounded-lg hover:bg-background-dark transition-colors">
-                <svg class="w-5 h-5 text-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+              <div class="flex gap-2">
+                <button @click="editBook" class="p-2 rounded-lg hover:bg-background-dark transition-colors">
+                  <svg class="w-5 h-5 text-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </button>
+                <button @click="selectedBook = null" class="p-2 rounded-lg hover:bg-background-dark transition-colors">
+                  <svg class="w-5 h-5 text-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
             </div>
 
             <div class="space-y-3 mb-6">
@@ -185,13 +192,13 @@
       </div>
     </div>
 
-    <!-- 添加电子书模态框 -->
+    <!-- 添加/编辑电子书模态框 -->
     <Teleport to="body">
       <div v-if="showAddModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto" @click.self="showAddModal = false">
         <div class="bg-background-primary rounded-2xl w-full max-w-lg max-h-[90vh] overflow-hidden shadow-xl flex flex-col animate-scale-in">
           <!-- 头部 -->
           <div class="flex items-center justify-between p-5 border-b border-border flex-shrink-0">
-            <h3 class="text-xl font-semibold text-text-primary">添加电子书</h3>
+            <h3 class="text-xl font-semibold text-text-primary">{{ editingBook ? '编辑电子书' : '添加电子书' }}</h3>
             <button @click="showAddModal = false" class="p-2 hover:bg-background-dark rounded-lg transition-colors">
               <svg class="w-5 h-5 text-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -235,7 +242,11 @@
                 <label class="block text-sm font-medium text-text-primary mb-1.5">分类 *</label>
                 <select v-model="newBook.category" required class="w-full px-3.5 py-2.5 border border-border rounded-lg bg-background-primary focus:border-brand-mint focus:outline-none focus:ring-2 focus:ring-brand-mint/20 transition-all text-sm">
                   <option value="">请选择</option>
-                  <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
+                  <option value="基础理论">基础理论</option>
+                  <option value="系统与网络">系统与网络</option>
+                  <option value="数据库">数据库</option>
+                  <option value="人工智能">人工智能</option>
+                  <option value="编程语言">编程语言</option>
                 </select>
               </div>
             </div>
@@ -280,12 +291,12 @@
             <button type="button" @click="showAddModal = false" class="flex-1 px-4 py-2.5 border border-border rounded-lg text-text-secondary hover:bg-background-dark transition-colors text-sm font-medium">
               取消
             </button>
-            <button type="button" @click="addBook" :disabled="isUploading" class="flex-1 px-4 py-2.5 bg-brand-mint text-white rounded-lg hover:bg-brand-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm font-medium">
+            <button type="button" @click="editingBook ? updateBook() : addBook()" :disabled="isUploading" class="flex-1 px-4 py-2.5 bg-brand-mint text-white rounded-lg hover:bg-brand-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm font-medium">
               <svg v-if="isUploading" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
-              {{ isUploading ? '上传中...' : '添加电子书' }}
+              {{ isUploading ? (editingBook ? '保存中...' : '上传中...') : (editingBook ? '保存修改' : '添加电子书') }}
             </button>
           </div>
         </div>
@@ -306,6 +317,7 @@ const coverPreview = ref('');
 const coverFile = ref(null);
 const isUploading = ref(false);
 const coverInput = ref(null);
+const editingBook = ref(null);
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
@@ -436,6 +448,7 @@ const handleFile = (file) => {
 const removeCover = () => {
   coverPreview.value = '';
   coverFile.value = null;
+  newBook.value.cover_url = '';
   if (coverInput.value) {
     coverInput.value.value = '';
   }
@@ -444,6 +457,26 @@ const removeCover = () => {
 const categories = ref([]);
 const books = ref([]);
 const isLoading = ref(true);
+
+const categoryMapping = {
+  '基础理论': '基础理论',
+  '系统与网络': '系统与网络',
+  '数据库': '数据库',
+  '人工智能': '人工智能',
+  '编程语言': '编程语言',
+  '数据结构': '基础理论',
+  '算法设计': '基础理论',
+  '操作系统': '系统与网络',
+  '数据库原理': '数据库',
+  '计算机网络': '系统与网络',
+  'data-structure': '基础理论',
+  'algorithm': '基础理论',
+  'os': '系统与网络',
+  'database': '数据库',
+  'ai': '人工智能',
+  'programming': '编程语言',
+  'network': '系统与网络'
+}
 
 // 从后端API获取书籍列表
 async function loadBooks() {
@@ -455,16 +488,14 @@ async function loadBooks() {
     });
     if (response.ok) {
       const data = await response.json();
-      // 从API数据中提取分类
       const catSet = new Set();
       data.forEach(b => {
-        if (b.category) catSet.add(b.category);
+        if (b.category) catSet.add(categoryMapping[b.category] || b.category);
       });
-      categories.value = Array.from(catSet).map(id => ({
-        id: id,
-        name: id
+      categories.value = Array.from(catSet).map(name => ({
+        id: name,
+        name: name
       }));
-      // 映射书籍数据
       books.value = data.map(b => ({
         id: b.id,
         title: b.title || '未命名书籍',
@@ -497,18 +528,43 @@ loadBooks();
 const filteredBooks = computed(() => {
   return books.value.filter(book => {
     const matchSearch = !searchQuery.value || book.title.toLowerCase().includes(searchQuery.value.toLowerCase()) || book.author.toLowerCase().includes(searchQuery.value.toLowerCase()) || book.isbn.includes(searchQuery.value);
-    const matchCategory = !selectedCategory.value || book.category === selectedCategory.value;
+    const matchCategory = !selectedCategory.value || (categoryMapping[book.category] || book.category) === selectedCategory.value;
     return matchSearch && matchCategory;
   });
 });
 
 const getCategoryName = (categoryId) => {
-  const category = categories.value.find(c => c.id === categoryId);
-  return category ? category.name : categoryId;
+  return categoryMapping[categoryId] || categoryId;
 };
 
 const selectBook = (book) => {
   selectedBook.value = book;
+};
+
+const editBook = () => {
+  if (!selectedBook.value) return;
+  
+  editingBook.value = selectedBook.value;
+  newBook.value = {
+    title: selectedBook.value.title,
+    subtitle: selectedBook.value.subtitle,
+    author: selectedBook.value.author,
+    translator: selectedBook.value.translator,
+    publisher: selectedBook.value.publisher,
+    publish_date: selectedBook.value.publish_date,
+    isbn: selectedBook.value.isbn,
+    category: selectedBook.value.category,
+    summary: selectedBook.value.summary,
+    tableOfContents: selectedBook.value.toc ? selectedBook.value.toc.join('\n') : '',
+    cover_url: selectedBook.value.cover_url
+  };
+  
+  if (selectedBook.value.cover_url) {
+    coverPreview.value = selectedBook.value.cover_url;
+  }
+  
+  selectedBook.value = null;
+  showAddModal.value = true;
 };
 
 const addBook = async () => {
@@ -594,6 +650,96 @@ const addBook = async () => {
     };
     coverPreview.value = '';
     coverFile.value = null;
+    editingBook.value = null;
+  }
+};
+
+const updateBook = async () => {
+  if (!editingBook.value) return;
+  
+  isUploading.value = true;
+  
+  try {
+    // 上传封面（如果有新的封面）
+    if (coverFile.value) {
+      try {
+        const formData = new FormData();
+        formData.append('file', coverFile.value);
+        
+        const token = localStorage.getItem('access_token') || localStorage.getItem('token');
+        const response = await fetch('http://localhost:8000/api/upload/ebook-cover/temp', {
+          method: 'POST',
+          body: formData,
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+        });
+        
+        if (response.ok) {
+          const result = await response.json();
+          newBook.value.cover_url = result.url;
+        } else {
+          console.warn('封面上传失败，将继续更新电子书');
+        }
+      } catch (error) {
+        console.warn('封面上传异常，将继续更新电子书:', error);
+      }
+    }
+    
+    // 调用后端API更新书籍
+    const token = localStorage.getItem('access_token') || localStorage.getItem('token');
+    const response = await fetch(`http://localhost:8000/api/knowledge/books/${editingBook.value.id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify({
+        title: newBook.value.title,
+        subtitle: newBook.value.subtitle,
+        author: newBook.value.author,
+        translator: newBook.value.translator,
+        publisher: newBook.value.publisher,
+        isbn: newBook.value.isbn,
+        publish_date: newBook.value.publish_date,
+        category: newBook.value.category,
+        summary: newBook.value.summary || '暂无简介',
+        cover_url: newBook.value.cover_url,
+        table_of_contents: newBook.value.tableOfContents
+      })
+    });
+    
+    if (response.ok) {
+      const result = await response.json();
+      console.log('书籍更新成功:', result);
+      await loadBooks();
+    } else {
+      const error = await response.json();
+      console.error('更新书籍失败:', error.detail || '未知错误');
+      alert(`更新书籍失败: ${error.detail || '未知错误'}`);
+    }
+  } catch (error) {
+    console.error('更新书籍异常:', error);
+    alert('更新书籍失败，请重试');
+  } finally {
+    showAddModal.value = false;
+    isUploading.value = false;
+    
+    // 重置表单
+    newBook.value = {
+      title: '',
+      subtitle: '',
+      author: '',
+      translator: '',
+      publisher: '',
+      publish_date: '',
+      isbn: '',
+      category: '',
+      summary: '',
+      tableOfContents: '',
+      cover_url: ''
+    };
+    coverPreview.value = '';
+    coverFile.value = null;
+    editingBook.value = null;
   }
 };
 </script>

@@ -159,7 +159,7 @@ def llm_answer(user_question, reference_docs, debug=False):
         print(f"  {'='*60}")
     
     try:
-        models_to_try = ["Qwen/Qwen3-8B", "Qwen/Qwen2.5-7B-Instruct", "deepseek-ai/DeepSeek-V3"]
+        models_to_try = ["Qwen/Qwen3-8B"]
         
         for model in models_to_try:
             try:
@@ -185,7 +185,7 @@ def llm_answer(user_question, reference_docs, debug=False):
                     print(f"  ✅ 模型 {model} 返回成功")
                     return content.strip()
                 else:
-                    print(f"  ⚠️ 模型 {model} 返回空内容，尝试下一个...")
+                    print(f"  [WARNING] 模型 {model} 返回空内容，尝试下一个...")
                     continue
                     
             except Exception as e:
@@ -308,7 +308,7 @@ print("-" * 60)
 
 # -------------------- 调试: API测试 --------------------
 if "失败" in final_ans or "错误" in final_ans:
-    print("\n⚠️ API 调用出现问题，执行连通性测试...")
+    print("\n[WARNING] API 调用出现问题，执行连通性测试...")
     print("-" * 60)
     test_payload = {
         "model": "Qwen/Qwen3-8B",

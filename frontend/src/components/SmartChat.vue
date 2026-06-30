@@ -28,10 +28,8 @@
                   </svg>
                 </div>
               </div>
-              <div v-else class="flex-shrink-0 w-10 h-10 rounded-full bg-brand-light flex items-center justify-center">
-                <svg class="w-5 h-5 text-brand-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                </svg>
+              <div v-else class="flex-shrink-0 w-10 h-10 rounded-full overflow-hidden bg-white">
+                <img src="/ai.png" alt="AI" class="w-full h-full object-cover" />
               </div>
               <div class="max-w-[70%]" :class="message.role === 'user' ? 'text-right' : ''">
                 <div class="inline-block px-4 py-3 rounded-2xl" :class="message.role === 'user' ? 'bg-brand-mint text-white rounded-br-md' : 'bg-background-secondary text-text-primary rounded-bl-md'">
@@ -154,7 +152,7 @@
                   <div v-if="message.references && message.references.length > 0" class="mt-2 pt-2 border-t border-border/50">
                     <p class="text-xs text-text-light mb-1">引用来源:</p>
                     <div class="space-y-1">
-                      <div v-for="(ref, idx) in message.references.slice(0, 3)" :key="idx" class="text-xs text-text-secondary">
+                      <div v-for="(ref, idx) in getUniqueReferences(message.references).slice(0, 3)" :key="idx" class="text-xs text-text-secondary">
                         {{ formatReference(ref) }}
                       </div>
                     </div>
@@ -177,10 +175,8 @@
 
             <!-- 流式加载中的光标闪烁效果 -->
             <div v-if="isTyping" class="flex gap-3 justify-start">
-              <div class="flex-shrink-0 w-10 h-10 rounded-full bg-brand-light flex items-center justify-center">
-                <svg class="w-5 h-5 text-brand-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
+              <div class="flex-shrink-0 w-10 h-10 rounded-full overflow-hidden bg-white">
+                <img src="/ai.png" alt="AI" class="w-full h-full object-cover" />
               </div>
               <div class="bg-background-secondary rounded-2xl rounded-bl-md px-4 py-3">
                 <div class="flex gap-1">
@@ -285,7 +281,7 @@
               <button
                   v-if="conv.id !== threadId"
                   @click.stop="showDeleteConfirmation(conv.id)"
-                  class="p-1.5 rounded bg-background-secondary hover:bg-error-red text-text-secondary hover:text-white transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-error-red focus:ring-offset-2"
+                  class="p-1.5 rounded bg-background-secondary hover:bg-error text-text-secondary hover:text-white transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-error focus:ring-offset-2"
                   :disabled="deletingConvId === conv.id"
                   title="删除会话"
                   aria-label="删除会话"
@@ -322,12 +318,15 @@
               <button @click="cancelDelete" class="flex-1 px-4 py-2.5 border border-border rounded-lg text-text-secondary hover:bg-background-dark transition-colors text-sm font-medium">
                 取消
               </button>
-              <button @click="confirmDelete" :disabled="deletingConvId" class="flex-1 px-4 py-2.5 bg-error-red text-white rounded-lg hover:bg-error-red-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm font-medium font-semibold focus:outline-none focus:ring-2 focus:ring-error-red focus:ring-offset-2" aria-describedby="delete-confirm-message">
-                <svg v-if="deletingConvId" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+              <button @click="confirmDelete" :disabled="deletingConvId" class="flex-[1.3] px-6 py-3 bg-error text-white border-2 border-error rounded-xl hover:bg-red-700 hover:border-red-700 hover:shadow-2xl hover:shadow-error/60 hover:scale-110 active:scale-95 transition-all duration-300 ease-out disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-lg flex items-center justify-center gap-2 text-lg font-black tracking-wide focus:outline-none focus:ring-4 focus:ring-error/40" aria-describedby="delete-confirm-message">
+                <svg v-if="deletingConvId" class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                   <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                {{ deletingConvId ? '删除中...' : '删除' }}
+                <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                {{ deletingConvId ? '删除中...' : '确认' }}
               </button>
             </div>
           </div>
@@ -338,8 +337,10 @@
 </template>
 
 <script setup>
-import { ref, nextTick, watch, computed } from 'vue';
+import { ref, nextTick, watch, computed, onMounted } from 'vue';
+import { storeToRefs } from 'pinia';
 import { useAuthStore } from '../stores/auth';
+import { useSmartChatStore } from '../stores/smartChat';
 import { marked } from 'marked';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/github.css';
@@ -348,34 +349,23 @@ import 'highlight.js/styles/github.css';
 marked.use({ breaks: true, gfm: true });
 
 const authStore = useAuthStore();
+const smartChatStore = useSmartChatStore();
+const { messages, threadId, conversations, currentMode } = storeToRefs(smartChatStore);
 
 // 用户头像 URL（优先使用真实头像）
 const userAvatarUrl = computed(() => {
   return authStore.user?.avatar || '';
 });
 
-const currentMode = ref('knowledge');
 const inputMessage = ref('');
 const isTyping = ref(false);
 const chatContainer = ref(null);
-
-const messages = ref([]);
-
-// 从 localStorage 恢复会话
-const savedThreadId = localStorage.getItem('chat_thread_id');
-const threadId = ref(savedThreadId || generateId());
-
-const conversations = ref([]);
-
-function generateId() {
-  return 'chat_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
-}
 
 // 加载会话列表
 async function loadConversations() {
   if (!authStore.accessToken) return;
   try {
-    const res = await fetch('http://localhost:8000/api/chat/my?limit=10', {
+    const res = await fetch('/api/chat/my?limit=10', {
       headers: { 'Authorization': `Bearer ${authStore.accessToken}` }
     });
     if (res.ok) {
@@ -391,7 +381,7 @@ async function loadConversations() {
 async function loadHistory(convId) {
   if (!authStore.accessToken) return;
   try {
-    const res = await fetch(`http://localhost:8000/api/chat/${convId}/history?limit=50`, {
+    const res = await fetch(`/api/chat/${convId}/history?limit=50`, {
       headers: { 'Authorization': `Bearer ${authStore.accessToken}` }
     });
     if (res.ok) {
@@ -414,8 +404,7 @@ async function loadHistory(convId) {
 
 // 切换会话
 async function switchConversation(convId) {
-  threadId.value = convId;
-  localStorage.setItem('chat_thread_id', convId);
+  smartChatStore.setThreadId(convId);
   messages.value = [];
   isTyping.value = false;
   await loadHistory(convId);
@@ -425,8 +414,7 @@ async function switchConversation(convId) {
 
 // 新建会话
 async function newConversation() {
-  threadId.value = generateId();
-  localStorage.setItem('chat_thread_id', threadId.value);
+  smartChatStore.setThreadId(smartChatStore.generateId());
   messages.value = [];
   messages.value.push({
     id: 'welcome-' + Date.now(),
@@ -462,7 +450,7 @@ async function confirmDelete() {
   deletingConvId.value = convId;
   
   try {
-    const res = await fetch(`http://localhost:8000/api/chat/${convId}`, {
+    const res = await fetch(`/api/chat/${convId}`, {
       method: 'DELETE',
       headers: { 'Authorization': `Bearer ${authStore.accessToken}` }
     });
@@ -504,40 +492,51 @@ function formatTime(dateStr) {
 }
 
 const examples = ref([
-  '什么是二叉树？',
-  '如何实现快速排序？',
-  'TCP三次握手的过程',
-  '推荐一本数据结构的书'
+  '什么是时间复杂度和空间复杂度？',
+  '操作系统中的进程和线程有什么区别？',
+  'TCP三次握手的过程是怎样的？',
+  '什么是数据库的索引？'
 ]);
 
 const recommendedQuestions = ref([
-  '数据结构中栈和队列的区别是什么？',
   '什么是时间复杂度和空间复杂度？',
   '操作系统中的进程和线程有什么区别？',
-  'HTTP和HTTPS的区别是什么？',
-  '什么是数据库的ACID特性？'
+  'TCP三次握手的过程是怎样的？',
+  '什么是数据库的索引？',
+  '什么是动态规划？',
+  '数组和链表的区别是什么？'
 ]);
 
-// 初始化
-(async function init() {
-  if (authStore.accessToken) {
-    await loadConversations();
-    // 如果当前 threadId 在会话列表中，加载历史
-    const exists = conversations.value.find(c => c.id === threadId.value);
-    if (exists) {
-      await loadHistory(threadId.value);
+// 初始化：首次进入时加载后端历史；切换页面返回时保留 Pinia 中的对话
+onMounted(async () => {
+  smartChatStore.ensureThreadId();
+
+  if (!smartChatStore.initialized) {
+    if (authStore.accessToken) {
+      await loadConversations();
+      const exists = conversations.value.find(c => c.id === threadId.value);
+      if (exists) {
+        await loadHistory(threadId.value);
+      }
     }
+    if (messages.value.length === 0) {
+      messages.value.push({
+        id: 'welcome-' + Date.now(),
+        role: 'assistant',
+        content: '您好！我是您的智能学习助手。请问有什么可以帮助您的吗？',
+        time: '刚刚',
+        agent: '知识讲解Agent'
+      });
+    }
+    smartChatStore.initialized = true;
   }
-  if (messages.value.length === 0) {
-    messages.value.push({
-      id: 'welcome-' + Date.now(),
-      role: 'assistant',
-      content: '您好！我是您的智能学习助手。请问有什么可以帮助您的吗？',
-      time: '刚刚',
-      agent: '知识讲解Agent'
-    });
+
+  const pending = smartChatStore.consumePendingQuestion();
+  if (pending) {
+    await nextTick();
+    sendMessage(pending);
   }
-})();
+});
 
 // Markdown 渲染函数（含代码高亮和数学公式）
 function renderMarkdown(text) {
@@ -672,41 +671,64 @@ function getWorkflowIconClass(detail) {
 function formatReference(ref) {
   if (!ref) return '未知来源';
   
-  // 获取可用的来源字段
   let source = ref.original_doc || ref.source || ref.title || ref.text || ref.filename || '';
   
-  // 如果是对象，尝试获取更多字段
   if (typeof source === 'object') {
     source = source.title || source.name || JSON.stringify(source);
   }
   
-  // 清理字符串：去除多余空格和换行
   if (typeof source === 'string') {
     source = source.replace(/\s+/g, ' ').trim();
+    
+    // 提取文件名（去掉路径和扩展名）
+    const lastSlash = Math.max(source.lastIndexOf('/'), source.lastIndexOf('\\'));
+    if (lastSlash !== -1) {
+      source = source.substring(lastSlash + 1);
+    }
+    
+    // 去掉扩展名
+    const lastDot = source.lastIndexOf('.');
+    if (lastDot !== -1) {
+      source = source.substring(0, lastDot);
+    }
   }
   
-  // 如果为空，尝试其他字段
   if (!source) {
     const fields = ['original_doc', 'source', 'title', 'text', 'filename'];
     for (const field of fields) {
       if (ref[field] && typeof ref[field] === 'string') {
         source = ref[field].replace(/\s+/g, ' ').trim();
+        
+        const lastSlash = Math.max(source.lastIndexOf('/'), source.lastIndexOf('\\'));
+        if (lastSlash !== -1) {
+          source = source.substring(lastSlash + 1);
+        }
+        
+        const lastDot = source.lastIndexOf('.');
+        if (lastDot !== -1) {
+          source = source.substring(0, lastDot);
+        }
+        
         if (source) break;
       }
     }
   }
   
-  // 仍然为空则返回默认值
   if (!source) {
     source = '来源资料';
   }
   
-  // 截断过长的来源名称
-  if (source.length > 50) {
-    source = source.substring(0, 50) + '...';
-  }
-  
   return source;
+}
+
+function getUniqueReferences(references) {
+  const seen = new Set();
+  return references.filter(ref => {
+    const formatted = formatReference(ref);
+    if (seen.has(formatted)) return false;
+    seen.add(formatted);
+    return true;
+  });
 }
 
 const sendMessage = async (message) => {
@@ -739,9 +761,8 @@ const sendMessage = async (message) => {
   scrollToBottom();
 };
 
-// 多Agent协同API调用
+// 多Agent协同API调用（流式）
 const callMultiAgentApi = async (message) => {
-  // 先插入一个"执行中"的占位消息，展示工作流动画
   const placeholderId = 'agent-' + Date.now();
   const runningWorkflow = {
     'understanding': { status: 'running', intent: '', question_type: '', entities: [], timestamp: new Date().toISOString() },
@@ -768,7 +789,7 @@ const callMultiAgentApi = async (message) => {
   scrollToBottom();
 
   try {
-    const url = 'http://localhost:8000/api/chat/multi-agent';
+    const url = '/api/chat/multi-agent/stream';
 
     const response = await fetch(url, {
       method: 'POST',
@@ -786,33 +807,102 @@ const callMultiAgentApi = async (message) => {
       throw new Error('Multi-agent API request failed');
     }
 
-    const data = await response.json();
-    
-    // 更新占位消息为真实结果（默认收起工作流）
-    const idx = messages.value.findIndex(m => m.id === placeholderId);
-    if (idx !== -1) {
-      messages.value[idx] = {
-        id: placeholderId,
-        role: 'assistant',
-        content: data.response || data.message || '抱歉，我无法回答这个问题。',
-        time: '刚刚',
-        agent: data.agent || '多Agent协同系统',
-        references: data.references || [],
-        workflow_details: data.workflow_details || {},
-        confidence: data.confidence || 0,
-        validation_score: data.validation_score || 0,
-        related_knowledge: data.related_knowledge || [],
-        learning_path: data.learning_path || [],
-        execution_time: data.execution_time || 0,
-        _workflowExpanded: false
-      };
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+
+        try {
+          const eventData = JSON.parse(line.slice(6));
+
+          if (eventData.type === 'step') {
+            const idx = messages.value.findIndex(m => m.id === placeholderId);
+            if (idx !== -1) {
+              const stepId = eventData.step_id;
+              const status = eventData.status;
+              const output = eventData.output || {};
+
+              if (messages.value[idx].workflow_details[stepId]) {
+                messages.value[idx].workflow_details[stepId].status = status;
+
+                if (status === 'completed') {
+                  if (stepId === 'understanding') {
+                    messages.value[idx].workflow_details[stepId].intent = output.intent || '';
+                    messages.value[idx].workflow_details[stepId].question_type = output.question_type || '';
+                    messages.value[idx].workflow_details[stepId].entities = output.entities?.concepts || [];
+                  } else if (stepId === 'retrieval') {
+                    const chunks = output.knowledge_chunks || [];
+                    messages.value[idx].workflow_details[stepId].knowledge_count = chunks.length;
+                    messages.value[idx].workflow_details[stepId].has_real_data = chunks.some(c => c.metadata?.is_real_data);
+                  } else if (stepId === 'generation') {
+                    messages.value[idx].workflow_details[stepId].answer_length = output.answer?.length || 0;
+                  } else if (stepId === 'validation') {
+                    messages.value[idx].workflow_details[stepId].overall_score = output.overall_score || 0;
+                    messages.value[idx].workflow_details[stepId].feedback = output.feedback || '';
+                  } else if (stepId === 'recommend') {
+                    messages.value[idx].workflow_details[stepId].related_count = output.related_count || 0;
+                  }
+
+                  if (stepId === 'understanding') {
+                    messages.value[idx].workflow_details['retrieval'].status = 'running';
+                  } else if (stepId === 'retrieval') {
+                    messages.value[idx].workflow_details['reasoning'].status = 'running';
+                  } else if (stepId === 'reasoning') {
+                    messages.value[idx].workflow_details['generation'].status = 'running';
+                  } else if (stepId === 'generation') {
+                    messages.value[idx].workflow_details['validation'].status = 'running';
+                    messages.value[idx].workflow_details['recommend'].status = 'running';
+                  }
+                }
+
+                messages.value[idx].workflow_details = { ...messages.value[idx].workflow_details };
+              }
+            }
+            await nextTick();
+            scrollToBottom();
+          } else if (eventData.type === 'final') {
+            const idx = messages.value.findIndex(m => m.id === placeholderId);
+            if (idx !== -1) {
+              messages.value[idx] = {
+                id: placeholderId,
+                role: 'assistant',
+                content: eventData.response || '抱歉，我无法回答这个问题。',
+                time: '刚刚',
+                agent: eventData.agent || '多Agent协同系统',
+                references: eventData.references || [],
+                workflow_details: eventData.workflow_details || {},
+                confidence: eventData.confidence || 0,
+                validation_score: eventData.validation_score || 0,
+                related_knowledge: eventData.related_knowledge || [],
+                learning_path: eventData.learning_path || [],
+                execution_time: eventData.execution_time || 0,
+                _workflowExpanded: false
+              };
+            }
+            await nextTick();
+            scrollToBottom();
+          } else if (eventData.type === 'error') {
+            throw new Error(eventData.data);
+          }
+        } catch (parseError) {
+          console.error('Parse SSE event error:', parseError);
+        }
+      }
     }
   } catch (error) {
     console.error('Multi-agent API error:', error);
-    // 更新占位消息为错误状态
     const idx = messages.value.findIndex(m => m.id === placeholderId);
     if (idx !== -1) {
-      // 将所有步骤标记为失败
       const failedWorkflow = { ...messages.value[idx].workflow_details };
       Object.keys(failedWorkflow).forEach(key => {
         failedWorkflow[key] = { ...failedWorkflow[key], status: 'failed' };
@@ -838,7 +928,9 @@ const streamApi = async (message) => {
   let hasReceivedToken = false;
 
   try {
-    const response = await fetch('http://localhost:8000/api/chat/knowledge/stream', {
+    const apiUrl = '/api/chat/knowledge/stream';
+    console.log('DEBUG: streamApi URL:', apiUrl);
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -922,7 +1014,7 @@ const streamApi = async (message) => {
 // 非流式API调用（对话模式）
 const callApi = async (message) => {
   try {
-    const url = 'http://localhost:8000/api/chat/message';
+    const url = '/api/chat/message';
 
     const response = await fetch(url, {
       method: 'POST',

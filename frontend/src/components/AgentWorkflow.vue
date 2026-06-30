@@ -120,7 +120,7 @@
                 class="px-3 py-2 bg-background-secondary rounded-lg text-xs text-text-secondary"
               >
                 <span class="text-brand-mint font-medium">{{ idx + 1 }}.</span>
-                <span class="ml-2">{{ citation.title || citation.source || '未知来源' }}</span>
+                <span class="ml-2">{{ formatSource(citation.title || citation.source) }}</span>
                 <span v-if="citation.score" class="ml-2 opacity-70">(相似度: {{ (citation.score * 100).toFixed(0) }}%)</span>
               </div>
             </div>
@@ -395,6 +395,25 @@ function getStepStatusBadgeClass(stepId) {
   if (status === 'completed') return 'bg-success-green/20 text-success-green';
   if (status === 'failed') return 'bg-error-red/20 text-error-red';
   return 'bg-text-light/20 text-text-light';
+}
+
+// 格式化来源（提取文件名，去掉路径和扩展名）
+function formatSource(source) {
+  if (!source) return '未知来源';
+  
+  let name = String(source);
+  
+  const lastSlash = Math.max(name.lastIndexOf('/'), name.lastIndexOf('\\'));
+  if (lastSlash !== -1) {
+    name = name.substring(lastSlash + 1);
+  }
+  
+  const lastDot = name.lastIndexOf('.');
+  if (lastDot !== -1) {
+    name = name.substring(0, lastDot);
+  }
+  
+  return name || '未知来源';
 }
 
 // 刷新Agent状态

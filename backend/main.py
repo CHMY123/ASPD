@@ -44,8 +44,10 @@ print("日志系统已配置: INFO 级别")
 print("=" * 60)
 
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 from config import (
     APP_HOST,
@@ -67,7 +69,7 @@ from infrastructure import (
 )
 from infrastructure.database_init import initialize_database, verify_database
 from application import ChatService, KnowledgeService, LearningService, AuthService
-from interfaces.api import chat_router, knowledge_router, learning_router, auth_router, upload_router, agent_router
+from interfaces.api import chat_router, knowledge_router, learning_router, auth_router, upload_router, agent_router, admin_router
 from interfaces.api.chat_router import set_chat_service, set_coordination_agent as set_chat_coordination_agent
 from interfaces.api.knowledge_router import set_knowledge_service
 from interfaces.api.learning_router import set_learning_service
@@ -205,6 +207,12 @@ app = FastAPI(
     openapi_url="/api/openapi.json"
 )
 
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    print(f"[REQUEST] {request.method} {request.url}")
+    response = await call_next(request)
+    return response
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
@@ -219,12 +227,16 @@ app.include_router(knowledge_router)
 app.include_router(learning_router)
 app.include_router(upload_router)
 app.include_router(agent_router)
+app.include_router(admin_router)
+
+
+app.mount("/assets", StaticFiles(directory="../frontend/dist/assets"), name="assets")
 
 
 @app.get("/", include_in_schema=False)
 async def root():
-    """根路径重定向到前端页面"""
-    return {"message": "请访问前端页面 http://localhost:5173"}
+    """根路径返回前端页面"""
+    return FileResponse("../frontend/dist/index.html")
 
 
 @app.get("/health", tags=["系统"])

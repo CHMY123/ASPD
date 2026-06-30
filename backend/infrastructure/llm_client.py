@@ -35,10 +35,7 @@ logger = logging.getLogger(__name__)
 
 # 多模型回退列表，按优先级排列
 FALLBACK_MODELS = [
-    "Qwen/Qwen3-8B",
-    "Qwen/Qwen2.5-7B-Instruct",
-    "deepseek-ai/DeepSeek-V3",
-    "gpt-3.5-turbo",
+    "Qwen/Qwen3-8B"
 ]
 
 
@@ -54,10 +51,12 @@ def retry_on_failure(max_retries: int = 3, delay: float = 1.0):
                     last_exc = e
                     if attempt < max_retries - 1:
                         wait = delay * (2 ** attempt)
-                        print(f"  ⚠️ 重试 ({attempt+1}/{max_retries}): {e}，等待{wait:.1f}s...")
+                        sys.stdout.write(f"  [WARN] 重试 ({attempt+1}/{max_retries}): {e}，等待{wait:.1f}s...\n")
+                        sys.stdout.flush()
                         await asyncio.sleep(wait)
                     else:
-                        print(f"  ❌ 全部重试失败 ({max_retries}次): {e}")
+                        sys.stdout.write(f"  [ERR] 全部重试失败 ({max_retries}次): {e}\n")
+                        sys.stdout.flush()
             raise last_exc
         return wrapper
     return decorator
@@ -302,7 +301,8 @@ class LLMClient:
                 return
             except Exception as e:
                 last_error = e
-                print(f"  ⚠️ 流式模型 {attempt_model} 失败: {e}")
+                sys.stdout.write(f"  [WARN] 流式模型 {attempt_model} 失败: {e}\n")
+                sys.stdout.flush()
                 continue
 
         raise LLMError(
