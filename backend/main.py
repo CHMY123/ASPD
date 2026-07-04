@@ -38,10 +38,11 @@ logging.getLogger("interfaces").setLevel(logging.INFO)
 # 创建主日志器
 logger = logging.getLogger(__name__)
 
-# 打印日志配置确认
-print("=" * 60)
-print("日志系统已配置: INFO 级别")
-print("=" * 60)
+# 仅在直接运行时打印日志配置确认，避免uvicorn导入时重复输出
+if __name__ == "__main__":
+    print("=" * 60)
+    print("日志系统已配置: INFO 级别")
+    print("=" * 60)
 
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
@@ -74,7 +75,7 @@ from interfaces.api.chat_router import set_chat_service, set_coordination_agent 
 from interfaces.api.knowledge_router import set_knowledge_service
 from interfaces.api.learning_router import set_learning_service
 from interfaces.api.auth_router import set_auth_service
-from interfaces.api.agent_router import set_coordination_agent
+from interfaces.api.agent_router import set_coordination_agent, set_chat_service as set_agent_chat_service
 
 
 knowledge_service: KnowledgeService = None
@@ -164,6 +165,7 @@ async def lifespan(app: FastAPI):
     set_knowledge_service(knowledge_service)
     set_learning_service(learning_service)
     set_chat_service(chat_service)
+    set_agent_chat_service(chat_service)
     set_coordination_agent(coordination_agent)
     set_chat_coordination_agent(coordination_agent)
 
@@ -303,17 +305,8 @@ if __name__ == "__main__":
     # 根据DEBUG配置设置日志级别
     log_level = "debug" if DEBUG else "info"
     
-    # 根据DEBUG配置重新配置 agents 日志输出到 stderr
-    for logger_name in ["agents", "agents.agents", "agents.base"]:
-        logger = logging.getLogger(logger_name)
-        logger.setLevel(logging.DEBUG if DEBUG else logging.INFO)
-        if not logger.handlers:
-            handler = logging.StreamHandler(sys.stderr)
-            handler.setFormatter(logging.Formatter(
-                "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
-                "%Y-%m-%d %H:%M:%S"
-            ))
-            logger.addHandler(handler)
+    # agent日志通过根日志器的stdout handler输出一次即可，
+    # 不添加额外handler，避免与force_print形成重复输出
     
     # Windows平台使用手动事件循环启动（避免aiomysql SSL IOCP问题）
     if sys.platform == 'win32':

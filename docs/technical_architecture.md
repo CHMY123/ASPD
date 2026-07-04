@@ -286,6 +286,30 @@ backend/
 | token | 回答片段 | {"content": "..."} |
 | references | 引用来源 | {"source": "...", "score": 0.9} |
 | error | 错误信息 | {"error": "..."} |
+| step_start | 工作流步骤开始 | {"agent": "...", "step_name": "..."} |
+| step_complete | 工作流步骤完成 | {"agent": "...", "step_name": "...", "result": {...}} |
+| result | 最终结果 | {"answer": "...", "recommended_courses": [...]} |
+| done | 流程结束 | {} |
+
+### 5.3 SSE接口
+
+| 接口 | 方法 | 描述 |
+|------|------|------|
+| `/api/chat/knowledge/stream` | POST | 知识检索模式流式接口 |
+| `/api/agents/query/stream` | POST | 多Agent工作流流式接口 |
+
+### 5.4 CORS配置
+
+流式接口需要特殊的CORS配置：
+
+```python
+headers={
+    "Cache-Control": "no-cache",
+    "Connection": "keep-alive",
+    "X-Accel-Buffering": "no",
+    "Access-Control-Allow-Origin": "http://localhost:5173"
+}
+```
 
 ## 六、前端架构
 
@@ -438,6 +462,7 @@ CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 
 ---
 
-**文档版本**: v2.0  
-**创建日期**: 2026年6月  
-**适用项目**: 华南师范大学计算机专业课程管理系统
+**文档版本**: v2.1  
+**创建日期**: 2026年7月  
+**适用项目**: 华南师范大学计算机专业课程管理系统  
+**修订说明**: 完善SSE技术应用章节，添加工作流步骤事件类型和CORS配置说明

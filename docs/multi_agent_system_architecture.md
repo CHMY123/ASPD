@@ -1253,9 +1253,89 @@ class MessageQueue:
 
 ---
 
-## 五、任务分配逻辑
+## 五、SSE流式接口
 
-### 5.1 任务分解
+### 5.1 接口概述
+
+为实现多Agent工作流的实时状态展示，系统提供SSE（Server-Sent Events）流式接口，前端通过EventSource接收工作流步骤的实时状态更新。
+
+### 5.2 API端点
+
+```http
+POST /api/agents/query/stream
+Authorization: Bearer <jwt_token>
+Content-Type: application/json
+
+{
+    "query": "推荐一些数据结构相关的课程",
+    "context": {}
+}
+```
+
+### 5.3 SSE事件类型
+
+| 事件类型 | 说明 | 数据结构 |
+|----------|------|---------|
+| `step_start` | 步骤开始 | `{"agent": "understanding", "step_name": "意图识别", "timestamp": ...}` |
+| `step_complete` | 步骤完成 | `{"agent": "understanding", "step_name": "意图识别", "result": {...}, "duration_ms": ...}` |
+| `step_error` | 步骤错误 | `{"agent": "understanding", "step_name": "意图识别", "error": "..."}` |
+| `token` | 回答片段 | `{"content": "..."}` |
+| `references` | 引用来源 | `[{"id": "...", "title": "...", "source": "..."}]` |
+| `result` | 最终结果 | `{"answer": "...", "recommended_courses": [...], "recommended_ebooks": [...]}` |
+| `done` | 流程结束 | `{}` |
+
+### 5.4 前端集成示例
+
+```javascript
+const eventSource = new EventSource('/api/agents/query/stream', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token
+    },
+    body: JSON.stringify({ query: userQuery })
+});
+
+eventSource.addEventListener('step_start', (event) => {
+    const data = JSON.parse(event.data);
+    updateAgentStatus(data.agent, 'running');
+});
+
+eventSource.addEventListener('step_complete', (event) => {
+    const data = JSON.parse(event.data);
+    updateAgentStatus(data.agent, 'completed');
+});
+
+eventSource.addEventListener('token', (event) => {
+    const data = JSON.parse(event.data);
+    appendToAnswer(data.content);
+});
+
+eventSource.addEventListener('done', () => {
+    eventSource.close();
+});
+```
+
+### 5.5 CORS配置
+
+流式接口需要特殊的CORS配置，后端已在StreamingResponse中添加以下响应头：
+
+```python
+headers={
+    "Cache-Control": "no-cache",
+    "Connection": "keep-alive",
+    "X-Accel-Buffering": "no",
+    "Access-Control-Allow-Origin": "http://localhost:5173",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization"
+}
+```
+
+---
+
+## 六、任务分配逻辑
+
+### 6.1 任务分解
 
 ```python
 class TaskDecomposer:
@@ -1304,7 +1384,7 @@ class TaskDecomposer:
         return tasks
 ```
 
-### 5.2 任务调度
+### 6.2 任务调度
 
 ```python
 class TaskScheduler:
@@ -1343,7 +1423,7 @@ class TaskScheduler:
         return result
 ```
 
-### 5.3 负载均衡
+### 6.3 负载均衡
 
 ```python
 class LoadBalancer:
@@ -1373,9 +1453,9 @@ class LoadBalancer:
 
 ---
 
-## 六、协作决策过程
+## 七、协作决策过程
 
-### 6.1 决策机制
+### 7.1 决策机制
 
 ```python
 class DecisionMaker:
@@ -1401,7 +1481,7 @@ class DecisionMaker:
         return decision
 ```
 
-### 6.2 冲突解决
+### 7.2 冲突解决
 
 ```python
 class ConflictResolver:
@@ -1428,9 +1508,9 @@ class ConflictResolver:
 
 ---
 
-## 七、成果输出路径
+## 八、成果输出路径
 
-### 7.1 输出格式
+### 8.1 输出格式
 
 ```python
 @dataclass
@@ -1460,7 +1540,7 @@ class FinalOutput:
     metadata: dict                          # 元数据
 ```
 
-### 7.2 输出示例
+### 8.2 输出示例
 
 ```json
 {
@@ -1547,9 +1627,9 @@ class FinalOutput:
 
 ---
 
-## 八、系统优化
+## 九、系统优化
 
-### 8.1 性能优化
+### 9.1 性能优化
 
 **并行处理**
 - 无依赖任务并行执行
@@ -1566,7 +1646,7 @@ class FinalOutput:
 - 连接池管理
 - 内存优化
 
-### 8.2 可靠性优化
+### 9.2 可靠性优化
 
 **容错机制**
 - Agent故障检测
@@ -1585,9 +1665,9 @@ class FinalOutput:
 
 ---
 
-## 九、系统健康优化【新增】
+## 十、系统健康优化
 
-### 9.1 缓存策略
+### 10.1 缓存策略
 
 **多级缓存架构**
 ```python
@@ -1639,7 +1719,7 @@ class CacheManager:
 - **定时刷新**：关键数据定时重新计算
 - **事件驱动**：数据变更时触发缓存失效
 
-### 9.2 容错降级
+### 10.2 容错降级
 
 **降级策略**
 ```python
@@ -1718,7 +1798,7 @@ class DegradationManager:
 - 熔断状态：关闭→半开→打开→关闭循环
 - 自动恢复：熔断一段时间后自动尝试恢复
 
-### 9.3 监控指标
+### 10.3 监控指标
 
 **关键指标定义**
 ```python
@@ -1787,9 +1867,9 @@ class MetricsCollector:
 
 ---
 
-## 十、扩展性设计
+## 十一、扩展性设计
 
-### 10.1 Agent扩展
+### 11.1 Agent扩展
 
 **新增Agent**
 ```python
@@ -1809,7 +1889,7 @@ coordination_agent.update_workflow({
 })
 ```
 
-### 10.2 工作流扩展
+### 11.2 工作流扩展
 
 **自定义工作流**
 ```python
@@ -1835,7 +1915,7 @@ result = await coordination_agent.process_with_workflow(
 
 ---
 
-## 十一、总结
+## 十二、总结
 
 本多Agent智能问答系统通过以下机制实现高效协作：
 
@@ -1850,8 +1930,8 @@ result = await coordination_agent.process_with_workflow(
 
 ---
 
-**文档版本**: v2.0  
-**创建日期**: 2026年6月  
+**文档版本**: v2.1  
+**创建日期**: 2026年7月  
 **适用项目**: 华南师范大学计算机专业课程管理系统  
 **作者**: AI系统架构师  
-**修订说明**: 新增课程电子书检索Agent和个性化推荐Agent，优化工作流和健康监控机制
+**修订说明**: 新增SSE流式接口，支持工作流实时状态展示；更新章节编号；完善CORS配置说明

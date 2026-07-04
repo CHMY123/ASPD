@@ -4,8 +4,8 @@
 
 本文档描述课程学习知识库问答系统中RAG（Retrieval-Augmented Generation）深度知识检索模块的技术架构、核心实现和配置说明。
 
-**版本**: v2.1
-**更新日期**: 2026-06-24
+**版本**: v2.2
+**更新日期**: 2026-07-01
 **参考实现**: `backend/demo.py`
 
 ---
@@ -408,6 +408,15 @@ Authorization: Bearer <jwt_token>
 ---
 
 ## 9. 变更日志
+
+### v2.2 (2026-07-01)
+- 修复GBK编码错误：Windows环境下Unicode字符导致编码异常
+- 解决Windows环境数据库连接问题：设置WindowsSelectorEventLoopPolicy
+- 解决uvicorn启动错误：手动创建SelectorEventLoop
+- 配置Chroma使用BGE-M3 embedding：创建BGEEmbeddingFunction类
+- 修复ChromaDB接口兼容性：embed_query参数名和返回值格式调整
+- 实现多Agent工作流SSE流式接口：添加`/api/agents/query/stream`端点
+- 配置项从.env读取：取消config.py中的硬编码
 
 ### v2.1 (2026-06-24)
 - 优化数据库搜索功能：基于UnderstandingAgent识别的实体关键词进行LIKE匹配

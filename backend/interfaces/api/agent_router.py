@@ -15,11 +15,13 @@ from interfaces.schemas.chat_schema import ErrorResponse
 from agents import CoordinationAgent
 from infrastructure import LLMClient, ChromaKnowledgeRepository
 from interfaces.api.auth_router import get_current_user
+from application.chat_service import ChatService
 
 router = APIRouter(prefix="/api/agents", tags=["多Agent系统"])
 
 # 全局多Agent协调器实例
 _coordination_agent: CoordinationAgent = None
+_chat_service: ChatService = None
 
 
 def set_coordination_agent(agent: CoordinationAgent):
@@ -33,6 +35,19 @@ def get_coordination_agent() -> CoordinationAgent:
     if _coordination_agent is None:
         raise HTTPException(status_code=500, detail="多Agent系统未初始化")
     return _coordination_agent
+
+
+def set_chat_service(service: ChatService):
+    """设置问答服务（由main.py调用）"""
+    global _chat_service
+    _chat_service = service
+
+
+def get_chat_service() -> ChatService:
+    """获取问答服务"""
+    if _chat_service is None:
+        raise HTTPException(status_code=500, detail="问答服务未初始化")
+    return _chat_service
 
 
 async def require_authentication(current_user: dict = Depends(get_current_user)):
@@ -139,8 +154,24 @@ async def query_with_multi_agent_stream(
     """
     query = request.query
     context = request.context
+    user_id = current_user.get("id") if not context or not context.get("user_id") or context.get("user_id") == "anonymous" else context.get("user_id")
     
     async def event_generator():
+        from domain.conversation.entity import Message
+        
+        # 获取问答服务
+        chat_service = get_chat_service()
+        
+        # 创建或获取会话
+        thread_id = query[:32]
+        conversation = await chat_service._get_or_create_conversation(thread_id, user_id, query)
+        
+        # 保存用户消息
+        user_msg = Message.user_message(thread_id, query)
+        await chat_service.conversation_repo.add_message(user_msg)
+        conversation.update_activity()
+        await chat_service.conversation_repo.update_conversation(conversation)
+        
         # 创建一个队列用于收集步骤状态
         step_queue = asyncio.Queue()
         final_result = None
@@ -185,6 +216,16 @@ async def query_with_multi_agent_stream(
             if event['type'] == 'workflow_complete':
                 # 工作流完成，推送最终结果
                 if final_result:
+                    # 保存助手回复
+                    assistant_msg = Message.assistant_message(
+                        thread_id,
+                        final_result.get("answer", "暂无回答"),
+                        final_result.get("citations", []),
+                        agent_used="多Agent协同系统",
+                        workflow_details=final_result.get("workflow_details", {})
+                    )
+                    await chat_service.conversation_repo.add_message(assistant_msg)
+                    
                     result_data = {
                         'type': 'result',
                         'data': {

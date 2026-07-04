@@ -100,11 +100,10 @@ cd backend
 python main.py
 ```
 
-或使用uvicorn：
-
-```bash
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
-```
+**Windows环境注意事项**：
+- Windows平台会自动使用SelectorEventLoopPolicy，确保aiomysql SSL连接兼容性
+- 若遇到编码问题，确保已设置环境变量：`set PYTHONIOENCODING=utf-8`
+- 请勿使用`uvicorn main:app --reload`命令，后端已在main.py中处理了Windows事件循环问题
 
 #### 步骤2：启动前端开发服务器
 
@@ -199,6 +198,29 @@ pip install python-jose[cryptography]==3.3.0
 1. 检查API密钥是否正确配置
 2. 验证网络连接可以访问API服务器
 3. 检查API调用频率是否超限
+
+### 问题6：Windows环境下数据库连接失败（SSLWantReadError/OSError: [WinError 87]）
+
+**原因**：Windows默认使用ProactorEventLoop，与aiomysql的SSL连接存在IOCP兼容性问题
+
+**解决方案**：
+1. 使用`python main.py`命令启动，后端已自动设置WindowsSelectorEventLoopPolicy
+2. 确保Python版本为3.11+
+
+### 问题7：'gbk' codec can't encode character错误
+
+**原因**：Windows默认使用GBK编码，无法编码Unicode字符
+
+**解决方案**：
+1. 设置环境变量：`set PYTHONIOENCODING=utf-8`
+2. 后端已在代码中添加UTF-8编码支持
+
+### 问题8：uvicorn启动报错（Error loading custom loop setup function）
+
+**原因**：uvicorn的loop参数不支持某些值
+
+**解决方案**：
+1. 使用`python main.py`命令启动，后端已处理此问题
 
 ## 项目结构
 

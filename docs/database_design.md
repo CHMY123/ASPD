@@ -1,4 +1,4 @@
-﻿﻿﻿﻿# 华南师范大学计算机专业课程管理系统 - 数据库设计文档
+﻿﻿# 华南师范大学计算机专业课程管理系统 - 数据库设计文档
 
 ## 一、概述
 
@@ -130,14 +130,39 @@
 
 ### 5.1 TiDB Cloud
 
-连接字符串: mysql+pymysql://3AFZMTQtLWpwMiK.root:13SRvryuM6Z94Ko6@gateway01.ap-southeast-1.prod.alicloud.tidbcloud.com:4000/ASPD
+连接字符串从环境变量 `DATABASE_URL` 读取，配置格式：
+
+```env
+DATABASE_URL=mysql+pymysql://username:password@host:port/database
+```
+
+**注意**：TiDB Cloud连接需要SSL配置，后端已自动处理SSL连接。
 
 ### 5.2 Chroma
 
-- 存储路径: ./cs_know_db
-- 集合名称: cs_collection
+- 存储路径: `./cs_know_db`（从环境变量 `CHROMA_DB_PATH` 读取）
+- 集合名称: `cs_collection`（从环境变量 `CHROMA_COLLECTION_NAME` 读取）
+- Embedding模型: BAAI/bge-m3（1024维）
+- 距离度量: cosine
+
+### 5.3 环境变量配置
+
+所有数据库连接配置通过 `backend/.env` 文件管理：
+
+```env
+# TiDB配置
+DATABASE_URL=mysql+pymysql://user:password@host:port/database
+
+# Chroma配置
+CHROMA_DB_PATH=./cs_know_db
+CHROMA_COLLECTION_NAME=cs_collection
+
+# Embedding配置
+EMBEDDING_MODEL=BAAI/bge-m3
+EMBEDDING_DIMENSION=1024
+```
 
 ---
 
-文档版本: v1.0
-创建日期: 2026年6月
+文档版本: v1.1
+创建日期: 2026年7月

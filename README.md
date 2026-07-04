@@ -18,32 +18,57 @@
 
 ### 智能知识检索
 - 基于RAG架构的专业知识问答
+- 多路召回策略（向量检索 + 关键词检索）
+- RRF（Reciprocal Rank Fusion）结果融合算法
+- Rerank精排机制，提升检索精度
 - 流式输出，打字机效果
 - 检索结果引用来源清晰可追溯
 - 支持知识点关联推荐
 
 ### 多智能体协同对话
-- **课程咨询Agent**：课程信息查询、教学进度咨询
-- **代码解答Agent**：代码问题解答、算法实现指导
-- **电子书资讯Agent**：书籍推荐、内容检索
-- **知识讲解Agent**：概念解释、原理阐述
-- **学习规划Agent**：学习路径建议、复习计划制定
+- **理解Agent**：意图识别、实体提取、问题分类
+- **检索Agent**：向量知识库检索、数据库查询双路径
+- **推理Agent**：逻辑推理、上下文分析
+- **生成Agent**：答案生成、智能提示词切换
+- **验证Agent**：答案准确性验证、质量评分
+- **推荐Agent**：相关知识推荐、学习路径建议
+- 工作流实时状态展示，可视化执行过程
 
 ### LLM模式设置
 - **知识检索模式**：专注于专业知识查询，严格基于知识库
 - **对话模式**：日常学习交流，开放域对话
 
+## 架构亮点
+
+### RAG检索增强生成
+- **多路召回策略**：向量检索（语义相似度）+ 关键词检索（全文匹配）双路径召回
+- **RRF融合算法**：使用倒数排名融合（Reciprocal Rank Fusion）合并多路召回结果，无需调参，鲁棒性强
+- **Rerank精排**：使用BAAI/bge-reranker-v2-m3模型对融合结果进行精排，提升检索精度
+- **BGE-M3向量模型**：1024维向量表示，支持非对称检索（`query:`/`passage:`前缀）
+
+### 多Agent协同对话
+- **六Agent架构**：理解→检索→推理→生成→验证→推荐，形成完整的知识问答流程
+- **意图驱动路由**：根据用户意图自动选择向量知识库或关系数据库作为数据来源
+- **实时工作流展示**：通过SSE（Server-Sent Events）技术实时推送各Agent执行状态，可视化工作流进度
+- **多层次质量验证**：综合内容检查得分（60%）和LLM验证得分（40%），保障答案质量
+
 ## 技术栈
 
 | 层次 | 技术 | 版本 |
 |------|------|------|
-| 前端框架 | Vue3 | 3.4+ |
-| 状态管理 | Pinia | 2.1+ |
-| 样式框架 | Tailwind CSS | 3.4+ |
-| 后端框架 | FastAPI | 0.115+ |
-| Agent框架 | LangGraph | 1.x |
-| 向量数据库 | Chroma | 0.5+ |
+| 前端框架 | Vue3 | 3.4.21 |
+| 状态管理 | Pinia | 2.1.7 |
+| 样式框架 | Tailwind CSS | 3.4.1 |
+| 构建工具 | Vite | 5.1.6 |
+| 后端框架 | FastAPI | 0.123.5 |
+| ASGI服务器 | Uvicorn | 0.34.0 |
+| Agent框架 | LangGraph | 1.0.5 |
+| LLM集成 | langchain-openai | 1.2.2 |
+| 向量数据库 | Chroma | 1.4.0 |
 | 业务数据库 | TiDB Cloud | MySQL兼容 |
+| ORM | aiomysql / pymysql | 0.3.2 / 1.1.1 |
+| 数据验证 | Pydantic | 2.12.5 |
+| 文件存储 | boto3 (缤纷云) | 1.42.9 |
 | LLM接口 | SiliconFlow (OpenAI兼容) | - |
 
 ## 项目结构
@@ -135,8 +160,10 @@ gjrjsx/
 ├── docs/                        # 文档目录
 │   ├── knowledge/               # Markdown知识文件
 │   ├── RAG_TECHNICAL_DOCUMENTATION.md  # RAG技术文档
-│   └── multi_agent_system_architecture.md  # 多Agent架构文档
+│   ├── multi_agent_system_architecture.md  # 多Agent架构文档
+│   └── presentation_script.md   # 项目视频讲解演讲稿
 │
+├── .gitignore                   # Git忽略规则
 ├── requirement.md               # 需求文档
 ├── database_design.md           # 数据库设计文档
 ├── technical_architecture.md    # 技术架构文档
@@ -187,9 +214,9 @@ cd backend
 ```bash
 cd backend
 python main.py
-# 或使用uvicorn
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
+
+> **注意**: 在Windows环境下，`python main.py`会自动配置`WindowsSelectorEventLoopPolicy`，避免与aiomysql的SSL连接兼容性问题。请不要使用`uvicorn main:app --reload`命令启动。
 
 6. **启动前端开发服务器**
 ```bash
@@ -223,14 +250,26 @@ npm run dev
 LLM_API_KEY=your-api-key
 LLM_API_BASE=https://api.siliconflow.cn/v1
 LLM_MODEL=Qwen/Qwen3-8B
+LLM_MAX_TOKENS=1000
+LLM_TEMPERATURE=0.7
 
 # Embedding配置
 EMBEDDING_MODEL=BAAI/bge-m3
 EMBEDDING_DIMENSION=1024
+EMBEDDING_API_BASE=https://api.siliconflow.cn/v1
 
 # Rerank配置
 RERANK_API_BASE=https://api.siliconflow.cn/v1
 RERANK_MODEL=BAAI/bge-reranker-v2-m3
+RERANK_MAX_LENGTH=512
+RERANK_TOP_N=5
+RERANK_MIN_SCORE=0.3
+
+# RRF (Reciprocal Rank Fusion) 配置
+RRF_K=60
+
+# 相似度阈值
+SIMILARITY_THRESHOLD=0.5
 
 # 数据库配置
 DATABASE_URL=mysql+pymysql://...
@@ -243,9 +282,24 @@ CHROMA_COLLECTION_NAME=cs_collection
 APP_HOST=0.0.0.0
 APP_PORT=8000
 DEBUG=false
+KNOWLEDGE_BASE_PATH=../docs/knowledge
+MAX_SEARCH_RESULTS=5
 
 # CORS配置
 CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+CORS_ALLOW_CREDENTIALS=true
+CORS_ALLOW_METHODS=*
+CORS_ALLOW_HEADERS=*
+
+# 缤纷云存储配置
+S3_ACCESS_KEY_ID=your-access-key
+S3_SECRET_ACCESS_KEY=your-secret-key
+S3_ENDPOINT_URL=https://s3.bitiful.net
+S3_BUCKET_NAME=your-bucket-name
+
+# 文件上传配置
+MAX_FILE_SIZE=10485760
+ALLOWED_EXTENSIONS=jpg,jpeg,png,gif,webp
 ```
 
 ## API接口
@@ -271,6 +325,10 @@ CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 - POST /api/chat/message - 对话模式
 - GET /api/chat/{thread_id}/history - 获取会话历史
 
+### 多Agent接口
+- POST /api/agents/query/stream - 多Agent协同查询（流式，实时推送工作流状态）
+- POST /api/agents/query - 多Agent协同查询（同步）
+
 ## 文档清单
 
 | 文档 | 说明 |
@@ -281,6 +339,7 @@ CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 | STARTUP_GUIDE.md | 启动指南 |
 | docs/RAG_TECHNICAL_DOCUMENTATION.md | RAG技术文档 |
 | docs/multi_agent_system_architecture.md | 多Agent架构文档 |
+| docs/presentation_script.md | 项目视频讲解演讲稿 |
 
 ## 许可证
 

@@ -635,7 +635,19 @@ async def chat_multi_agent_stream(
 
     async def event_generator():
         import asyncio
+        from domain.conversation.entity import Message
+        
         queue = asyncio.Queue()
+
+        # 1. 获取或创建会话
+        thread_id = request.thread_id or request.message[:32]
+        conversation = await service._get_or_create_conversation(thread_id, user_id, request.message)
+
+        # 2. 保存用户消息
+        user_msg = Message.user_message(thread_id, request.message)
+        await service.conversation_repo.add_message(user_msg)
+        conversation.update_activity()
+        await service.conversation_repo.update_conversation(conversation)
 
         async def step_callback(step_id, status, output=None):
             event_data = {
@@ -659,6 +671,16 @@ async def chat_multi_agent_stream(
                     },
                     step_callback=step_callback
                 )
+
+                # 保存助手回复
+                assistant_msg = Message.assistant_message(
+                    thread_id,
+                    result.get("answer", "暂无回答"),
+                    result.get("citations", []),
+                    agent_used="多Agent协同系统",
+                    workflow_details=result.get("workflow_details", {})
+                )
+                await service.conversation_repo.add_message(assistant_msg)
 
                 final_event = {
                     'type': 'final',

@@ -453,7 +453,13 @@
 | `/api/chat/conversations` | GET | 获取会话列表 |
 | `/api/chat/conversations/{id}` | DELETE | 删除会话 |
 
-### 6.5 学习记录接口
+### 6.5 Agent接口
+
+| 接口 | 方法 | 描述 |
+|------|------|------|
+| `/api/agents/query/stream` | POST | 多Agent工作流（流式SSE） |
+
+### 6.6 学习记录接口
 
 | 接口 | 方法 | 描述 |
 |------|------|------|
@@ -561,15 +567,16 @@
 | 文档名称 | 状态 | 说明 |
 |----------|------|------|
 | requirement.md | 完成 | 需求文档 |
-| database_design.md | 待完成 | 数据库设计文档 |
+| database_design.md | 完成 | 数据库设计文档 |
 | technical_architecture.md | 完成 | 技术架构文档 |
 | README.md | 完成 | 项目说明文档 |
 | STARTUP_GUIDE.md | 完成 | 启动指南 |
 | RAG_TECHNICAL_DOCUMENTATION.md | 完成 | RAG技术文档 |
 | multi_agent_system_architecture.md | 完成 | 多Agent架构文档 |
+| presentation_script.md | 完成 | 团队项目演讲稿 |
 
 ---
 
-**文档版本**: v3.0  
-**创建日期**: 2026年6月  
+**文档版本**: v3.1  
+**创建日期**: 2026年7月  
 **适用项目**: 华南师范大学计算机专业

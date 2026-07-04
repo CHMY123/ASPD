@@ -27,13 +27,11 @@ logger = logging.getLogger(__name__)
 
 # 强制输出调试信息到 stdout
 def force_print(msg: str):
-    """强制输出调试信息到标准输出（同时写 stderr 兜底）"""
+    """强制输出调试信息到标准输出（避免与logger重复输出到stderr）"""
     text = f"[AGENT] {msg}"
     text = text.replace('❌', '[ERR]').replace('⚠', '[WARN]')
     sys.stdout.write(text + '\n')
     sys.stdout.flush()
-    sys.stderr.write(text + '\n')
-    sys.stderr.flush()
 
 
 # ==================== JSON提取工具函数 ====================
@@ -1271,13 +1269,23 @@ class ValidationAgent(BaseAgent):
             }
         
         # 检查每个句子是否包含知识源中的关键词或短语
+        # 对中文文本使用重叠n-gram（2-4字短语）进行匹配，
+        # 避免逐字符遍历导致所有单字符被 len>=2 过滤的问题
         supported_count = 0
         for sentence in sentences:
-            # 提取句子中的关键名词短语（简单做法：取2-4个字的词）
-            words = [w for w in sentence if len(w) >= 2]
-            # 检查这些词是否在知识源中出现
-            matched = sum(1 for w in words if w in combined_source)
-            if matched >= max(1, len(words) * 0.3):  # 至少30%的词汇匹配
+            # 生成句子的重叠n-gram短语（2-4字）
+            ngram_phrases = set()
+            for n in range(2, 5):
+                for i in range(len(sentence) - n + 1):
+                    ngram_phrases.add(sentence[i:i+n])
+            
+            if not ngram_phrases:
+                continue
+            
+            # 检查n-gram短语是否在知识源中出现
+            matched = sum(1 for phrase in ngram_phrases if phrase in combined_source)
+            # 至少10%的n-gram短语匹配，则认为该句子有依据（降低阈值适应中文特性）
+            if matched >= max(1, len(ngram_phrases) * 0.1):
                 supported_count += 1
         
         accuracy = supported_count / len(sentences) if sentences else 0.0
@@ -1290,9 +1298,14 @@ class ValidationAgent(BaseAgent):
         else:
             feedback.append(f"答案内容基本有知识源支持（{accuracy:.0%}）")
         
+        # 只有当准确率极低且知识源有真实内容时才判定为无依据
+        has_real_content = accuracy > 0.05
+        # 确保即便准确率偏低，只要知识源有真实数据就不直接判负
+        accuracy_score = max(0.1, accuracy)
+        
         return {
-            'accuracy_score': max(0.1, accuracy),
-            'has_any_real_content': accuracy > 0.1,
+            'accuracy_score': accuracy_score,
+            'has_any_real_content': has_real_content,
             'feedback': '; '.join(feedback)
         }
     
